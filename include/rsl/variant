@@ -292,6 +292,7 @@ constexpr R visit_alt_at(std::size_t idx, F&& visitor, Vs&&... variants) {
                                                   : max_index <= 64  ? 3
                                                   : max_index <= 256 ? 4
                                                                      : -1>;
+
   return visit_helper::template visit_at<R>(idx,
                                             std::forward<F>(visitor),
                                             std::forward<Vs>(variants)...);
@@ -309,7 +310,7 @@ struct ValueVisitor {
 
 template <typename R, typename F, typename... Vs>
 constexpr R visit_at(std::size_t idx, F&& visitor, Vs&&... variants) {
-  return visit_alt_at<R>(idx,
+  return (visit_alt_at<R>)(idx,
                          ValueVisitor<F>{std::forward<F>(visitor)},
                          std::forward<Vs>(variants)...);
 }
@@ -495,7 +496,7 @@ public:
   template <std::size_t Idx, typename... Args>
   constexpr void emplace(Args&&... args) {
     reset();
-    std::construct_at(&storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:], std::in_place, std::forward<Args>(args)...);
+    std::construct_at(std::addressof(storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]), std::in_place, std::forward<Args>(args)...);
     tag = Idx;
   }
 
