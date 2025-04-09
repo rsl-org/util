@@ -1,0 +1,95 @@
+#pragma once
+#include <experimental/meta>
+#include <type_traits>
+
+#include <rsl/variant>
+
+namespace rsl {
+namespace _impl {
+template <typename T>
+concept is_enum = std::is_scoped_enum_v<T> || std::is_enum_v<T>;
+
+template <typename T>
+struct TypeTag {
+  using type = T;
+};
+
+template <typename T>
+using unwrap_type_tag = typename T::type;
+}  // namespace _impl
+
+template <typename T>
+constexpr inline _impl::TypeTag<T> type{};
+
+namespace _tagged_variant_impl {
+consteval std::meta::info make_variant(std::meta::info r) {
+  std::vector<std::meta::info> types;
+  for (auto enumerator : enumerators_of(r)) {
+    auto annotations     = annotations_of(enumerator);
+    auto annotation_type = type_of(annotations[0]);
+    auto alt_type        = dealias(substitute(^^_impl::unwrap_type_tag, {annotation_type}));
+    types.push_back(alt_type);
+  }
+  return substitute(^^rsl::variant, types);
+}
+
+template <_impl::is_enum T>
+consteval std::span<T const> make_transitions() {
+  using std::meta::define_static_array;
+
+  std::vector<T> transitions;
+  for (auto enumerator : enumerators_of(^^T)) {
+    transitions.push_back(extract<T>(enumerator));
+  }
+  return define_static_array(transitions);
+}
+
+template <_impl::is_enum T>
+consteval std::size_t find_inverse_transition(T value) {
+  std::size_t index = 0;
+  for (auto enumerator : enumerators_of(^^T)) {
+    if (value == extract<T>(enumerator)) {
+      return index;
+    }
+    ++index;
+  }
+  return -1ULL;
+}
+
+template <auto V>
+constexpr inline auto inverse_transition = find_inverse_transition(V);
+}  // namespace _tagged_variant_impl
+
+template <_impl::is_enum T>
+using variant_for = [:_tagged_variant_impl::make_variant(^^T):];
+
+template <_impl::is_enum T, typename... Ts>
+  requires(std::same_as<rsl::variant_for<T>, rsl::variant<Ts...>>)
+constexpr T get_tag(variant<Ts...> const& variant_) {
+  // get transition array
+  constexpr static auto transitions = _tagged_variant_impl::make_transitions<T>();
+  return transitions[variant_.index()];
+}
+
+template <auto E, typename... Ts>
+  requires(_impl::is_enum<decltype(E)> &&
+           std::same_as<rsl::variant_for<decltype(E)>, rsl::variant<Ts...>>)
+constexpr bool holds_alternative(variant<Ts...> const& variant_) noexcept {
+  constexpr static auto transitions = _tagged_variant_impl::make_transitions<decltype(E)>();
+  return transitions[variant_.index()] == E;
+}
+
+template <auto E, _variant_impl::has_get V>
+  requires(_impl::is_enum<decltype(E)> &&
+           std::same_as<rsl::variant_for<decltype(E)>, std::remove_cvref_t<V>>)
+constexpr decltype(auto) get(V&& variant_) {
+  return rsl::get<_tagged_variant_impl::inverse_transition<E>>(std::forward<V>(variant_));
+}
+
+template <auto E, typename... Ts>
+  requires(_impl::is_enum<decltype(E)> &&
+           std::same_as<rsl::variant_for<decltype(E)>, rsl::variant<Ts...>>)
+constexpr auto* get_if(variant<Ts...>* variant_) noexcept {
+  return rsl::get_if<_tagged_variant_impl::inverse_transition<E>>(variant_);
+}
+}  // namespace rsl

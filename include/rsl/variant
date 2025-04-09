@@ -815,7 +815,7 @@ constexpr bool holds_alternative(variant<Ts...> const& obj) noexcept {
  */
 template <class T, typename... Ts>
 constexpr bool holds_alternative(variant<Ts...> const& obj) noexcept {
-  return holds_alternative<_impl::index_of<T, _impl::TypeList<Ts...>>>(obj);
+  return obj.index() == _impl::index_of<T, _impl::TypeList<Ts...>>;
 }
 
 template <std::size_t Idx, _variant_impl::has_get V>
@@ -828,12 +828,11 @@ constexpr decltype(auto) get(V&& variant_) {
 
 template <typename T, _variant_impl::has_get V>
 constexpr decltype(auto) get(V&& variant_) {
-  // TODO
-  return std::forward<V>(variant_).template get<T>();
+  return rsl::get<T>(std::forward<V>(variant_));
 }
 
 template <std::size_t Idx, typename... Ts>
-constexpr auto* get_if(variant<Ts...>* variant_) noexcept {
+constexpr auto get_if(variant<Ts...>* variant_) noexcept -> variant_alternative_t<Idx, variant<Ts...>>*{
   static_assert(Idx < sizeof...(Ts),
                 std::string("index must be in [0, ") + _impl::to_string(sizeof...(Ts)) + ")");
   static_assert(!std::is_void_v<variant_alternative_t<Idx, variant<Ts...>>>,
@@ -849,7 +848,7 @@ template <typename T, typename... Ts>
 constexpr auto* get_if(variant<Ts...>* variant_) noexcept {
   constexpr static std::size_t index = _impl::index_of<T, _impl::TypeList<Ts...>>;
   static_assert(index < sizeof...(Ts), "T must occur exactly once in alternatives");
-  return get_if<index>(variant_);
+  return rsl::get_if<index>(variant_);
 }
 
 }  // namespace rsl
