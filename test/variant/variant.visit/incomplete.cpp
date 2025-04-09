@@ -7,8 +7,6 @@ template <typename T>
 struct Wrapper { T obj; };
 
 TEST(Visit, Incomplete){
-  //! TODO
-
   auto obj = rsl::variant<Wrapper<Incomplete>*, int>{};
 
   rsl::visit<void>([](auto){}, obj);
