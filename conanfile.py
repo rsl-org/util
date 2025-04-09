@@ -26,7 +26,7 @@ class RslRecipe(ConanFile):
     exports_sources = "CMakeLists.txt", "include/*"
 
     def requirements(self):
-        self.test_requires("gtest/1.16.0")
+        self.test_requires("gtest/1.14.0")
 
     def layout(self):
         cmake_layout(self)

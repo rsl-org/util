@@ -27,14 +27,13 @@ install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/ DESTINATION include)
 option(BUILD_TESTING "Enable tests" ON)
 option(ENABLE_COVERAGE "Enable coverage instrumentation" OFF)
 option(BUILD_EXAMPLES "Enable examples" ON)
-add_subdirectory(test)
 
 if (BUILD_TESTING)
   message(STATUS "Building unit tests")
 
   enable_testing()
-  add_executable(rsl_test)
-  add_subdirectory(tests)
+  add_executable(rsl_test "")
+  add_subdirectory(test)
 
   find_package(GTest REQUIRED)
   target_link_libraries(rsl_test PRIVATE rsl)
@@ -55,3 +54,4 @@ endif()
 if (BUILD_EXAMPLES)
   add_subdirectory(example)
 endif()
+
