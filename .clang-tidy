@@ -22,7 +22,9 @@ Checks: "*,
         -*-union-access,
         -readability-avoid-nested-conditional-operator,
         -readability-identifier-length,
-        -modernize-use-designated-initializers
+        -modernize-use-designated-initializers,
+        -misc-include-cleaner,
+        -misc-use-internal-linkage
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
