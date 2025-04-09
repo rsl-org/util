@@ -31,12 +31,6 @@ inline constexpr std::size_t variant_size_v = rsl::variant_size<T>::value;
 
 inline constexpr std::size_t variant_npos = -1ULL;
 
-template <typename F, typename... Vs>
-constexpr decltype(auto) visit(F&& visitor, Vs&&... variants);
-
-template <typename R, typename F, typename... Vs>
-constexpr decltype(auto) visit(F&& visitor, Vs&&... variants);
-
 namespace _variant_impl {
 [[noreturn]] void throw_bad_variant_access(bool);
 }
@@ -54,6 +48,7 @@ public:
 namespace _variant_impl {
 
 [[noreturn]] inline void throw_bad_variant_access(bool valueless) {
+  __builtin_debugtrap();
 #if __cpp_exceptions
   if (valueless) {
     throw rsl::bad_variant_access("variant is valueless");
@@ -97,7 +92,259 @@ concept has_get = requires(T obj) { obj.template get<0>(); };
 
 template <typename... Ts>
 using index_type = std::conditional_t<(sizeof...(Ts) >= 255), unsigned short, unsigned char>;
+
+template <std::size_t Idx, typename T>
+struct Alternative {
+  static constexpr std::size_t index = Idx;
+  T value;
+
+  template <typename... Args>
+  explicit constexpr Alternative(std::in_place_t, Args&&... args)
+      : value(std::forward<Args>(args)...) {}
+};
 }  // namespace _variant_impl
+
+namespace _visit_impl {
+template <std::size_t... Dimensions>
+struct Key {
+  constexpr static std::size_t size      = sizeof...(Dimensions);
+  constexpr static std::size_t max_index = (Dimensions * ... * 1);
+
+  static consteval auto generate_offsets() {
+    std::array<std::size_t, size> result = {};
+    constexpr std::size_t dimensions[]   = {Dimensions...};
+    result[0]                            = 1;
+    for (std::size_t idx = 1; idx < size; ++idx) {
+      result[idx] = dimensions[idx - 1] * result[idx - 1];
+    }
+
+    return result;
+  }
+
+  constexpr static auto offsets = generate_offsets();
+
+  std::size_t index                             = static_cast<std::size_t>(-1);
+  std::size_t subindices[sizeof...(Dimensions)] = {};
+
+  constexpr explicit Key(std::size_t index_) noexcept : index(index_) {
+    std::size_t key                    = index_;
+    constexpr std::size_t dimensions[] = {Dimensions...};
+    for (std::size_t idx = 0; idx < size; ++idx) {
+      subindices[idx] = key % dimensions[idx];
+      key /= dimensions[idx];
+    }
+  }
+
+  constexpr explicit Key(std::convertible_to<std::size_t> auto... subindices_) noexcept
+    requires(sizeof...(subindices_) > 1)
+      : index(0)
+      , subindices(subindices_...) {
+    static_assert(sizeof...(subindices_) == size,
+                  "Number of indices must match the number of dimensions.");
+    for (std::size_t idx = 0; idx < size; ++idx) {
+      index += subindices[idx] * offsets[idx];
+    }
+  }
+
+  constexpr explicit operator std::size_t() const noexcept { return index; }
+  constexpr std::size_t operator[](std::size_t position) const noexcept {
+    return subindices[position];
+  }
+  friend constexpr auto operator<=>(Key const& self, std::size_t other) {
+    return self.index <=> other;
+  }
+  friend constexpr bool operator==(Key const& self, std::size_t other) {
+    return self.index == other;
+  }
+};
+
+template <typename... Variants>  // possibly cv qualified
+struct VisitImpl {
+  using key_type = Key<variant_size<std::remove_cvref_t<Variants>>::value...>;
+  static constexpr std::size_t max_index = key_type::max_index;
+
+  template <key_type Tag, typename = std::make_index_sequence<sizeof...(Variants)>>
+  struct Dispatch;
+
+  template <key_type Tag, std::size_t... Idx>
+  struct Dispatch<Tag, std::index_sequence<Idx...>> {
+    template <typename F, typename... U>
+    [[gnu::always_inline]]
+    constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
+      return std::forward<F>(visitor)(std::forward<U>(variants).template get_alt<Tag[Idx]>()...);
+    }
+  };
+
+  template <std::size_t Idx, typename F, typename... U>
+  [[gnu::always_inline]]
+  constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
+    return Dispatch<key_type{Idx}>::visit(std::forward<F>(visitor), std::forward<U>(variants)...);
+  }
+};
+
+template <typename Variant>
+struct VisitImpl<Variant> {
+  using key_type                         = std::size_t;
+  static constexpr std::size_t max_index = variant_size<std::remove_cvref_t<Variant>>::value;
+
+  template <std::size_t Idx, typename F, typename U>
+  [[gnu::always_inline]] constexpr static decltype(auto) visit(F&& visitor, U&& variant) {
+    return std::forward<F>(visitor)(std::forward<U>(variant).template get_alt<Idx>());
+  }
+};
+
+template <std::size_t Idx,
+          typename V,
+          typename Alt = rsl::variant_alternative<0, std::remove_reference_t<V>>::type>
+// TODO: Vs... might be derived from variant
+using get_t = std::conditional_t<std::is_lvalue_reference_v<V>, Alt&, Alt&&>;
+
+// non-exhaustive result type check
+template <typename F, typename... Vs>
+using visit_result_t = std::invoke_result_t<F, get_t<0, Vs>...>;
+
+template <int I>
+struct VisitStrategy;
+
+template <>
+struct VisitStrategy<-1> {
+  template <typename R, typename F, typename... Vs, std::size_t... Idx>
+  constexpr static decltype(auto) visit_impl(std::index_sequence<Idx...>,
+                                             std::size_t index,
+                                             F&& visitor,
+                                             Vs&&... variants) {
+    using Impl                                = VisitImpl<Vs...>;
+    using function_type                       = R (*)(F&&, Vs&&...);
+    static constexpr function_type dispatch[] = {&Impl::template visit<Idx>...};
+    return dispatch[index](std::forward<F>(visitor), std::forward<Vs>(variants)...);
+  }
+
+  template <typename R, typename F, typename... Vs>
+  constexpr static decltype(auto) visit_at(std::size_t idx, F&& visitor, Vs&&... variants) {
+    constexpr auto states = VisitImpl<Vs...>::max_index;
+    return visit_impl<R>(std::make_index_sequence<states>{},
+                         idx,
+                         std::forward<F>(visitor),
+                         std::forward<Vs>(variants)...);
+  }
+};
+
+#define RSL_VISIT_CASE(Idx)                                                        \
+  case (Idx):                                                                      \
+    if constexpr ((Idx) < VisitImpl<Vs...>::max_index) {                           \
+      return VisitImpl<Vs...>::template visit<Idx>(std::forward<F>(visitor),       \
+                                                   std::forward<Vs>(variants)...); \
+    }                                                                              \
+    std::unreachable();
+
+#define RSL_GENERATE_STRATEGY(Idx, Stamper)                                                    \
+  template <>                                                                                  \
+  struct VisitStrategy<Idx> {                                                                  \
+    template <typename, typename F, typename... Vs>                                            \
+    static constexpr decltype(auto) visit_at(std::size_t idx, F&& visitor, Vs&&... variants) { \
+      switch (idx) {                                                                           \
+        Stamper(0, RSL_VISIT_CASE);                                                            \
+        default:                                                                               \
+          _variant_impl::throw_bad_variant_access((variants.valueless_by_exception() || ...)); \
+      }                                                                                        \
+    }                                                                                          \
+  }
+
+#define RSL_STAMP4(Offset, Fnc) Fnc(Offset) Fnc((Offset) + 1) Fnc((Offset) + 2) Fnc((Offset) + 3)
+
+#define RSL_STAMP16(Offset, Fnc) \
+  RSL_STAMP4(Offset, Fnc)        \
+  RSL_STAMP4((Offset) + 4, Fnc)  \
+  RSL_STAMP4((Offset) + 8, Fnc)  \
+  RSL_STAMP4((Offset) + 12, Fnc)
+
+#define RSL_STAMP64(Offset, Fnc)  \
+  RSL_STAMP16(Offset, Fnc)        \
+  RSL_STAMP16((Offset) + 16, Fnc) \
+  RSL_STAMP16((Offset) + 32, Fnc) \
+  RSL_STAMP16((Offset) + 48, Fnc)
+
+#define RSL_STAMP256(Offset, Fnc)  \
+  RSL_STAMP64(Offset, Fnc)         \
+  RSL_STAMP64((Offset) + 64, Fnc)  \
+  RSL_STAMP64((Offset) + 128, Fnc) \
+  RSL_STAMP64((Offset) + 192, Fnc)
+
+#define RSL_STAMP(Count) RSL_STAMP##Count
+
+RSL_GENERATE_STRATEGY(1, RSL_STAMP(4));    // 4^1 potential states
+RSL_GENERATE_STRATEGY(2, RSL_STAMP(16));   // 4^2 potential states
+RSL_GENERATE_STRATEGY(3, RSL_STAMP(64));   // 4^3 potential states
+RSL_GENERATE_STRATEGY(4, RSL_STAMP(256));  // 4^4 potential states
+
+#undef RSL_VISIT_CASE
+#undef RSL_GENERATE_STRATEGY
+#undef RSL_STAMP4
+#undef RSL_STAMP64
+#undef RSL_STAMP4256
+#undef RSL_STAMP
+
+template <typename R, typename F, typename... Vs>
+constexpr R visit_alt_at(std::size_t idx, F&& visitor, Vs&&... variants) {
+  constexpr static auto max_index = VisitImpl<Vs...>::max_index;
+  using visit_helper              = VisitStrategy<max_index <= 4     ? 1
+                                                  : max_index <= 16  ? 2
+                                                  : max_index <= 64  ? 3
+                                                  : max_index <= 256 ? 4
+                                                                     : -1>;
+  return visit_helper::template visit_at<R>(idx,
+                                            std::forward<F>(visitor),
+                                            std::forward<Vs>(variants)...);
+}
+
+template <typename F>
+struct ValueVisitor {
+  F&& visitor;
+
+  template <typename... Alts>
+  constexpr decltype(auto) operator()(Alts&&... alternatives) const {
+    return std::invoke(std::forward<F>(visitor), std::forward<Alts>(alternatives).value...);
+  }
+};
+
+template <typename R, typename F, typename... Vs>
+constexpr R visit_at(std::size_t idx, F&& visitor, Vs&&... variants) {
+  return visit_alt_at<R>(idx,
+                         ValueVisitor<F>{std::forward<F>(visitor)},
+                         std::forward<Vs>(variants)...);
+}
+
+template <typename R, typename F, typename... Vs>
+constexpr R visit_alt(F&& visitor, Vs&&... variants) {
+  if constexpr (sizeof...(Vs) == 0) {
+    return std::forward<F>(visitor)();
+  } else {
+    auto const key = typename _visit_impl::VisitImpl<Vs...>::key_type(variants.index()...);
+    return _visit_impl::visit_alt_at<R>(std::size_t{key},
+                                        std::forward<F>(visitor),
+                                        std::forward<Vs>(variants)...);
+  }
+}
+
+}  // namespace _visit_impl
+
+template <typename R, typename F, typename... Vs>
+constexpr R visit(F&& visitor, Vs&&... variants) {
+  if constexpr (sizeof...(Vs) == 0) {
+    return std::forward<F>(visitor)();
+  } else {
+    auto const key = typename _visit_impl::VisitImpl<Vs...>::key_type(variants.index()...);
+    return _visit_impl::visit_at<R>(std::size_t{key},
+                                    std::forward<F>(visitor),
+                                    std::forward<Vs>(variants)...);
+  }
+}
+
+template <typename F, typename... Vs>
+constexpr decltype(auto) visit(F&& visitor, Vs&&... variants) {
+  using return_type = _visit_impl::visit_result_t<F, Vs...>;
+  return rsl::visit<return_type>(std::forward<F>(visitor), std::forward<Vs>(variants)...);
+}
 
 template <typename... Ts>
 class variant {
@@ -110,18 +357,22 @@ class variant {
 
   union Storage;
   consteval {
+    std::size_t idx = 0;
     define_aggregate(^^Storage,
-                     {data_member_spec(^^char, {.name = "dummy"}), data_member_spec(^^Ts)...});
+                     {data_member_spec(^^char, {.name = "dummy"}),
+                      data_member_spec(substitute(^^_variant_impl::Alternative,
+                                                  {std::meta::reflect_value(idx++), ^^Ts}))...});
   };
 
   union {
     Storage storage;
   };
-  index_t tag;
+  index_t tag = npos;
 
   constexpr void reset() {
     if (tag != npos) {
-      rsl::visit([](auto&& member) { std::destroy_at(std::addressof(member)); }, *this);
+      _visit_impl::visit_alt<void>([](auto&& member) { std::destroy_at(std::addressof(member)); },
+                                   *this);
       tag = npos;
     }
   }
@@ -140,17 +391,16 @@ public:
     requires(!std::is_trivially_destructible_v<Storage> &&
              (std::is_copy_constructible_v<Ts> && ...))  // [variant.ctor]/9
   {
-    rsl::visit([this]<typename T>(T const& obj) { this->emplace<T>(obj); }, other);
+    do_construct(*this, other);
   }
 
   constexpr variant(variant&& other) = default;
   constexpr variant(variant&& other) noexcept((std::is_nothrow_move_constructible_v<Ts> &&
-                                               ...))                           // [variant.ctor]/12
+                                               ...))     // [variant.ctor]/12
     requires(!std::is_trivially_destructible_v<Storage>  // [variant.ctor]/13
              && (std::is_move_constructible_v<Ts> && ...))
   {
-    rsl::visit([this]<typename T>(T&& obj) { this->emplace<T>(std::forward<T>(obj)); },
-               std::move(other));
+    do_construct(*this, std::move(other));
   }
 
   // converting constructor
@@ -188,14 +438,13 @@ public:
   template <std::size_t Idx, typename... Args>
   constexpr explicit variant(std::in_place_index_t<Idx> idx, Args&&... args) noexcept(
       std::is_nothrow_constructible_v<Ts...[Idx], Args...>)  // [variant.ctor]/33
-      : tag(Idx)
-  {
+      : tag(Idx) {
     // Primary constructor
 
     std::construct_at(&storage, '\0');
-    std::construct_at(
-        std::addressof(storage.*&[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]),
-        std::forward<Args>(args)...);
+    std::construct_at(std::addressof(storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]),
+                      std::in_place,
+                      std::forward<Args>(args)...);
   }
 
   template <std::size_t Idx, typename U, typename... Args>
@@ -206,37 +455,34 @@ public:
                                                                std::initializer_list<U>&,
                                                                Args...>)  // noexcept not
                                                                           // standardized
-      : tag(Idx)
-  {
+      : tag(Idx) {
     // Primary constructor
 
     std::construct_at(&storage, '\0');
-    std::construct_at(
-        std::addressof(storage.*&[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]),
-        init_list,
-        std::forward<Args>(args)...);
+    std::construct_at(std::addressof(storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]),
+                      std::in_place,
+                      init_list,
+                      std::forward<Args>(args)...);
   }
 
   constexpr variant& operator=(variant const& other) = default;
   constexpr variant& operator=(variant&& other)      = default;
 
   constexpr variant& operator=(variant const& other)
-    requires(!std::is_trivially_destructible_v<Storage> &&
-             (std::is_copy_assignable_v<Ts> && ...))
+    requires(!std::is_trivially_destructible_v<Storage> && (std::is_copy_assignable_v<Ts> && ...))
   {
     if (this != std::addressof(other)) {
-      rsl::visit([this]<typename T>(T const& obj) { this->emplace<T>(obj); }, other);
+      rsl::visit<void>([this]<typename T>(T const& obj) { this->emplace<T>(obj); }, other);
     }
     return *this;
   }
 
   constexpr variant& operator=(variant&& other) noexcept
-    requires(!std::is_trivially_destructible_v<Storage> &&
-             (std::is_move_assignable_v<Ts> && ...))
+    requires(!std::is_trivially_destructible_v<Storage> && (std::is_move_assignable_v<Ts> && ...))
   {
     if (this != std::addressof(other)) {
-      rsl::visit([this]<typename T>(T&& obj) { this->emplace<T>(std::forward<T>(obj)); },
-                 std::move(other));
+      rsl::visit<void>([this]<typename T>(T&& obj) { this->emplace<T>(std::forward<T>(obj)); },
+                       std::move(other));
     }
     return *this;
   }
@@ -249,8 +495,7 @@ public:
   template <std::size_t Idx, typename... Args>
   constexpr void emplace(Args&&... args) {
     reset();
-    std::construct_at(&storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:],
-                      std::forward<Args>(args)...);
+    std::construct_at(&storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:], std::in_place, std::forward<Args>(args)...);
     tag = Idx;
   }
 
@@ -260,15 +505,9 @@ public:
   }
 
   template <std::size_t Idx, typename Self>
-  constexpr decltype(auto) get_unchecked(this Self&& self) {
+  constexpr decltype(auto) get_alt(this Self&& self) {
     static_assert(Idx < sizeof...(Ts), "Alternative index out of bounds");
-    return std::forward_like<Self>(
-        self.storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]);
-  }
-
-  template <typename T, typename Self>
-  constexpr decltype(auto) get_unchecked(this Self&& self) {
-    return std::forward<Self>(self).template get_unchecked<_impl::index_of<T, _impl::TypeList<Ts...>>>();
+    return std::forward_like<Self>(self.storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]);
   }
 
   template <std::size_t Idx, typename Self>
@@ -278,7 +517,7 @@ public:
     }
 
     static_assert(Idx < sizeof...(Ts), "Alternative index out of bounds");
-    return std::forward<Self>(self).template get_unchecked<Idx>();
+    return std::forward<Self>(self).template get_alt<Idx>().value;
   }
 
   template <typename T, typename Self>
@@ -291,9 +530,7 @@ public:
     return rsl::visit(std::forward<V>(visitor), std::forward<Self>(self));
   }
 
-  [[nodiscard]] constexpr bool valueless_by_exception() const noexcept {
-    return tag == npos;
-  }
+  [[nodiscard]] constexpr bool valueless_by_exception() const noexcept { return tag == npos; }
   [[nodiscard]] constexpr std::size_t index() const noexcept {
     if (tag != npos) {
       return tag;
@@ -307,6 +544,39 @@ private:
     return valueless_by_exception() || results[index()];
   }
 
+  static consteval auto get_member_ptrs() {
+    using std::meta::define_static_array;
+
+    std::array<void * Storage::*, sizeof...(Ts)> ptrs;
+    std::size_t idx = 0;
+
+    template for (constexpr auto Member :
+                  define_static_array(nonstatic_data_members_of(^^Storage) | std::views::drop(1))) {
+      ptrs[idx++] = (void* Storage::*)&[:Member:];
+    }
+    return ptrs;
+  }
+
+  template <typename V>
+  void do_construct(variant& lhs, V&& rhs) {
+    lhs.reset();
+    if (rhs.valueless_by_exception()) {
+      return;
+    }
+
+    auto rhs_index = rhs.index();
+    _visit_impl::visit_alt_at<void>(
+        rhs_index,
+        [&]<typename A>(A&& rhs_alternative) {
+          using alt_t = std::remove_cvref_t<A>;
+          std::construct_at(&lhs,
+                            std::in_place_index<alt_t::index>,
+                            std::forward<A>(rhs_alternative).value);
+        },
+        std::forward<V>(rhs));
+    lhs.tag = static_cast<index_t>(rhs_index);
+  }
+
 public:
   void swap(variant& other) {
     if (valueless_by_exception() && other.valueless_by_exception()) {
@@ -314,32 +584,28 @@ public:
       return;
     }
 
-    if (index() == other.index()) {
-      // same index, swap the held objects directly
-      rsl::visit(
-          [](auto& own_value, auto& other_value) {
-            using std::swap;
-            swap(own_value, other_value);
-          },
-          *this,
-          other);
-      return;
-    }
-
-    variant* lhs = this;
-    variant* rhs = std::addressof(other);
-
-    if (can_nothrow_move() && other.can_nothrow_move()) {
+    auto lhs = this;
+    auto rhs = std::addressof(other);
+    if (can_nothrow_move() && !other.can_nothrow_move()) {
       std::swap(lhs, rhs);
     }
 
     variant tmp(std::move(other));
-    // TODO
-#if __cpp_exceptions
-    if constexpr ((std::is_nothrow_move_constructible_v<Ts> && ...)) {}
-#else
-
-#endif
+    if constexpr ((std::is_nothrow_move_constructible_v<Ts> && ...)) {
+      do_construct(*rhs, std::move(*lhs));
+    } else {
+      // non-standard libc++ extension
+      // try moving tmp back into other if move construction from *this fails
+      try {
+        do_construct(*rhs, std::move(*lhs));
+      } catch (...) {
+        if (tmp.can_nothrow_move()) {
+          do_construct(*rhs, std::move(tmp));
+        }
+        throw;
+      }
+    }
+    do_construct(*lhs, std::move(tmp));
   }
 };
 
@@ -551,32 +817,6 @@ constexpr bool holds_alternative(variant<Ts...> const& obj) noexcept {
   return holds_alternative<_impl::index_of<T, _impl::TypeList<Ts...>>>(obj);
 }
 
-/**
- * @brief Get the desired alternative without performing boundary checks.
- * @warning non-standard extension
- * @tparam Idx Index of the alternative to retrieve
- * @tparam V
- * @param variant_
- * @return constexpr decltype(auto)
- */
-template <std::size_t Idx, _variant_impl::has_get V>
-constexpr decltype(auto) get_unchecked(V&& variant_) noexcept {
-  return std::forward<V>(variant_).template get<Idx>();
-}
-
-/**
- * @brief Get the desired alternative without performing boundary checks.
- * @warning non-standard extension
- * @tparam T The type of the alternative to retrieve
- * @tparam V
- * @param variant_
- * @return constexpr decltype(auto)
- */
-template <typename T, _variant_impl::has_get V>
-constexpr decltype(auto) get_unchecked(V&& variant_) {
-  return std::forward<V>(variant_).template get<T>();
-}
-
 template <std::size_t Idx, _variant_impl::has_get V>
 constexpr decltype(auto) get(V&& variant_) {
   if (variant_.index() != Idx) [[unlikely]] {
@@ -599,7 +839,7 @@ constexpr auto* get_if(variant<Ts...>* variant_) noexcept {
                 "alternative type must not be void");
 
   if (variant_ && variant_->index() == Idx) {
-    return std::addressof(rsl::get_unchecked<Idx>(*variant_));
+    return std::addressof((*variant_).template get_alt<Idx>().value);
   }
   return nullptr;
 }
@@ -609,222 +849,6 @@ constexpr auto* get_if(variant<Ts...>* variant_) noexcept {
   constexpr static std::size_t index = _impl::index_of<T, _impl::TypeList<Ts...>>;
   static_assert(index < sizeof...(Ts), "T must occur exactly once in alternatives");
   return get_if<index>(variant_);
-}
-
-namespace _visit_impl {
-template <std::size_t... Dimensions>
-struct Key {
-  constexpr static std::size_t size      = sizeof...(Dimensions);
-  constexpr static std::size_t max_index = (Dimensions * ... * 1);
-
-  static consteval auto generate_offsets() {
-    std::array<std::size_t, size> result = {};
-    constexpr std::size_t dimensions[]   = {Dimensions...};
-    result[0]                            = 1;
-    for (std::size_t idx = 1; idx < size; ++idx) {
-      result[idx] = dimensions[idx - 1] * result[idx - 1];
-    }
-
-    return result;
-  }
-
-  constexpr static auto offsets = generate_offsets();
-
-  std::size_t index                             = static_cast<std::size_t>(-1);
-  std::size_t subindices[sizeof...(Dimensions)] = {};
-
-  constexpr explicit Key(std::size_t index_) noexcept : index(index_) {
-    std::size_t key                    = index_;
-    constexpr std::size_t dimensions[] = {Dimensions...};
-    for (std::size_t idx = 0; idx < size; ++idx) {
-      subindices[idx] = key % dimensions[idx];
-      key /= dimensions[idx];
-    }
-  }
-
-  constexpr explicit Key(std::convertible_to<std::size_t> auto... subindices_) noexcept
-    requires(sizeof...(subindices_) > 1)
-      : index(0)
-      , subindices(subindices_...) {
-    static_assert(sizeof...(subindices_) == size,
-                  "Number of indices must match the number of dimensions.");
-    for (std::size_t idx = 0; idx < size; ++idx) {
-      index += subindices[idx] * offsets[idx];
-    }
-  }
-
-  constexpr explicit operator std::size_t() const noexcept { return index; }
-  constexpr std::size_t operator[](std::size_t position) const noexcept {
-    return subindices[position];
-  }
-  friend constexpr auto operator<=>(Key const& self, std::size_t other) {
-    return self.index <=> other;
-  }
-  friend constexpr bool operator==(Key const& self, std::size_t other) {
-    return self.index == other;
-  }
-};
-
-template <typename... Variants>  // possibly cv qualified
-struct VisitImpl {
-  using key_type = Key<variant_size<std::remove_cvref_t<Variants>>::value...>;
-  static constexpr std::size_t max_index = key_type::max_index;
-
-  template <key_type Tag, typename = std::make_index_sequence<sizeof...(Variants)>>
-  struct Dispatch;
-
-  template <key_type Tag, std::size_t... Idx>
-  struct Dispatch<Tag, std::index_sequence<Idx...>> {
-    template <typename F, typename... U>
-    [[gnu::always_inline]]
-    constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
-      return std::forward<F>(visitor)(rsl::get_unchecked<Tag[Idx]>(std::forward<U>(variants))...);
-    }
-  };
-
-  template <std::size_t Idx, typename F, typename... U>
-  [[gnu::always_inline]]
-  constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
-    return Dispatch<key_type{Idx}>::visit(std::forward<F>(visitor), std::forward<U>(variants)...);
-  }
-};
-
-template <typename Variant>
-struct VisitImpl<Variant> {
-  using key_type                         = std::size_t;
-  static constexpr std::size_t max_index = variant_size<std::remove_cvref_t<Variant>>::value;
-
-  template <std::size_t Idx, typename F, typename U>
-  [[gnu::always_inline]] constexpr static decltype(auto) visit(F&& visitor, U&& variant) {
-    return std::forward<F>(visitor)(rsl::get_unchecked<Idx>(std::forward<U>(variant)));
-  }
-};
-
-template <std::size_t Idx,
-          typename V,
-          typename Alt = rsl::variant_alternative<0, std::remove_reference_t<V>>::type>
-// TODO: Vs... might be derived from variant
-using get_t = std::conditional_t<std::is_lvalue_reference_v<V>, Alt&, Alt&&>;
-
-// non-exhaustive result type check
-template <typename F, typename... Vs>
-using visit_result_t = std::invoke_result_t<F, get_t<0, Vs>...>;
-
-template <int I>
-struct VisitStrategy;
-
-template <>
-struct VisitStrategy<-1> {
-  template <typename R, typename F, typename... Vs, std::size_t... Idx>
-  constexpr static decltype(auto) visit_impl(std::index_sequence<Idx...>,
-                                             std::size_t index,
-                                             F&& visitor,
-                                             Vs&&... variants) {
-    using Impl                                = VisitImpl<Vs...>;
-    using function_type                       = R (*)(F&&, Vs&&...);
-    static constexpr function_type dispatch[] = {&Impl::template visit<Idx>...};
-    return dispatch[index](std::forward<F>(visitor), std::forward<Vs>(variants)...);
-  }
-
-  template <typename R, typename F, typename... Vs>
-  constexpr static decltype(auto) visit(F&& visitor, Vs&&... variants) {
-    constexpr auto states = VisitImpl<Vs...>::max_index;
-    auto const key        = typename VisitImpl<Vs...>::key_type(variants.index()...);
-    return visit_impl<R>(std::make_index_sequence<states>{},
-                         std::size_t{key},
-                         std::forward<F>(visitor),
-                         std::forward<Vs>(variants)...);
-  }
-
-  template <typename R, typename F, typename... Vs>
-  constexpr static decltype(auto) visit_at(std::size_t index, F&& visitor, Vs&&... variants) {
-    constexpr auto states = VisitImpl<Vs...>::max_index;
-    auto key              = typename VisitImpl<Vs...>::key_type{(variants, index)...};
-
-    return visit_impl<R>(std::make_index_sequence<states>{},
-                         std::size_t{key},
-                         std::forward<F>(visitor),
-                         std::forward<Vs>(variants)...);
-  }
-};
-
-#define RSL_VISIT_CASE(Idx)                                                        \
-  case (Idx):                                                                      \
-    if constexpr ((Idx) < VisitImpl<Vs...>::max_index) {                           \
-      return VisitImpl<Vs...>::template visit<Idx>(std::forward<F>(visitor),       \
-                                                   std::forward<Vs>(variants)...); \
-    }                                                                              \
-    std::unreachable();
-
-#define RSL_GENERATE_STRATEGY(Idx, Stamper)                                                    \
-  template <>                                                                                  \
-  struct VisitStrategy<Idx> {                                                                  \
-    template <typename, typename F, typename... Vs>                                            \
-    static constexpr decltype(auto) visit(F&& visitor, Vs&&... variants) {                     \
-      const auto key = typename VisitImpl<Vs...>::key_type(variants.index()...);               \
-      switch (static_cast<std::size_t>(key)) {                                                 \
-        Stamper(0, RSL_VISIT_CASE);                                                            \
-        default:                                                                               \
-          _variant_impl::throw_bad_variant_access((variants.valueless_by_exception() || ...)); \
-      }                                                                                        \
-    }                                                                                          \
-  }
-
-#define RSL_STAMP4(Offset, Fnc) Fnc(Offset) Fnc((Offset) + 1) Fnc((Offset) + 2) Fnc((Offset) + 3)
-
-#define RSL_STAMP16(Offset, Fnc) \
-  RSL_STAMP4(Offset, Fnc)        \
-  RSL_STAMP4((Offset) + 4, Fnc)  \
-  RSL_STAMP4((Offset) + 8, Fnc)  \
-  RSL_STAMP4((Offset) + 12, Fnc)
-
-#define RSL_STAMP64(Offset, Fnc)  \
-  RSL_STAMP16(Offset, Fnc)        \
-  RSL_STAMP16((Offset) + 16, Fnc) \
-  RSL_STAMP16((Offset) + 32, Fnc) \
-  RSL_STAMP16((Offset) + 48, Fnc)
-
-#define RSL_STAMP256(Offset, Fnc)  \
-  RSL_STAMP64(Offset, Fnc)         \
-  RSL_STAMP64((Offset) + 64, Fnc)  \
-  RSL_STAMP64((Offset) + 128, Fnc) \
-  RSL_STAMP64((Offset) + 192, Fnc)
-
-#define RSL_STAMP(Count) RSL_STAMP##Count
-
-RSL_GENERATE_STRATEGY(1, RSL_STAMP(4));    // 4^1 potential states
-RSL_GENERATE_STRATEGY(2, RSL_STAMP(16));   // 4^2 potential states
-RSL_GENERATE_STRATEGY(3, RSL_STAMP(64));   // 4^3 potential states
-RSL_GENERATE_STRATEGY(4, RSL_STAMP(256));  // 4^4 potential states
-
-#undef RSL_VISIT_CASE
-#undef RSL_GENERATE_STRATEGY
-#undef RSL_STAMP4
-#undef RSL_STAMP64
-#undef RSL_STAMP4256
-#undef RSL_STAMP
-}  // namespace _visit_impl
-
-template <typename R, typename F, typename... Vs>
-constexpr decltype(auto) visit(F&& visitor, Vs&&... variants) {
-  if constexpr (sizeof...(Vs) == 0) {
-    return std::forward<F>(visitor)();
-  } else {
-    constexpr static std::size_t max_index = _visit_impl::VisitImpl<Vs...>::max_index;
-    constexpr static int strategy          = max_index <= 4     ? 1
-                                             : max_index <= 16  ? 2
-                                             : max_index <= 64  ? 3
-                                             : max_index <= 256 ? 4
-                                                                : -1;
-    using visit_helper                     = _visit_impl::VisitStrategy<strategy>;
-    return visit_helper::template visit<R>(std::forward<F>(visitor), std::forward<Vs>(variants)...);
-  }
-}
-
-template <typename F, typename... Vs>
-constexpr decltype(auto) visit(F&& visitor, Vs&&... variants) {
-  using return_type = _visit_impl::visit_result_t<F, Vs...>;
-  return rsl::visit<return_type>(std::forward<F>(visitor), std::forward<Vs>(variants)...);
 }
 
 }  // namespace rsl
