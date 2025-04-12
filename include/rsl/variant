@@ -100,6 +100,22 @@ struct Alternative {
   explicit constexpr Alternative(std::in_place_t, Args&&... args)
       : value(std::forward<Args>(args)...) {}
 };
+
+template <auto... Ptrs>
+struct Accessor {
+  template <std::size_t Idx, typename S>
+  constexpr static decltype(auto) get(S&& storage) noexcept {
+    return std::forward_like<S>(storage.[:Ptrs...[Idx]:]);
+  }
+
+  template <std::size_t Idx, typename S>
+  constexpr static decltype(auto) get_addr(S&& storage) noexcept {
+    return std::addressof(std::forward<S>(storage).[:Ptrs...[Idx]:]);
+  }
+};
+
+template <auto... Ptrs>
+constexpr inline Accessor<Ptrs...> accessor{};
 }  // namespace _variant_impl
 
 namespace _visit_impl {
@@ -324,7 +340,6 @@ constexpr R visit_alt(F&& visitor, Vs&&... variants) {
                                         std::forward<Vs>(variants)...);
   }
 }
-
 }  // namespace _visit_impl
 
 template <typename R, typename F, typename... Vs>
@@ -362,6 +377,15 @@ class variant {
                       data_member_spec(substitute(^^_variant_impl::Alternative,
                                                   {std::meta::reflect_value(idx++), ^^Ts}))...});
   };
+
+  static consteval auto get_member_ptrs() {
+    std::vector<std::meta::info> members;
+    for (auto member : nonstatic_data_members_of(^^Storage) | std::views::drop(1)) {
+      members.push_back(std::meta::reflect_value(member));
+    }
+    return substitute(^^_variant_impl::accessor, members);
+  }
+  constexpr static auto member_ptrs = [:get_member_ptrs():];
 
   union {
     Storage storage;
@@ -441,7 +465,7 @@ public:
     // Primary constructor
 
     std::construct_at(&storage, '\0');
-    std::construct_at(std::addressof(storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]),
+    std::construct_at(member_ptrs.template get_addr<Idx>(storage),
                       std::in_place,
                       std::forward<Args>(args)...);
   }
@@ -458,7 +482,7 @@ public:
     // Primary constructor
 
     std::construct_at(&storage, '\0');
-    std::construct_at(std::addressof(storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]),
+    std::construct_at(member_ptrs.template get_addr<Idx>(storage),
                       std::in_place,
                       init_list,
                       std::forward<Args>(args)...);
@@ -494,7 +518,7 @@ public:
   template <std::size_t Idx, typename... Args>
   constexpr void emplace(Args&&... args) {
     reset();
-    std::construct_at(std::addressof(storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]), std::in_place, std::forward<Args>(args)...);
+    std::construct_at(member_ptrs.template get_addr<Idx>(storage), std::in_place, std::forward<Args>(args)...);
     tag = Idx;
   }
 
@@ -506,7 +530,7 @@ public:
   template <std::size_t Idx, typename Self>
   constexpr decltype(auto) get_alt(this Self&& self) {
     static_assert(Idx < sizeof...(Ts), "Alternative index out of bounds");
-    return std::forward_like<Self>(self.storage.[:nonstatic_data_members_of(^^Storage)[Idx + 1]:]);
+    return self.member_ptrs.template get<Idx>(std::forward<Self>(self).storage);
   }
 
   template <std::size_t Idx, typename Self>
@@ -543,18 +567,7 @@ private:
     return valueless_by_exception() || results[index()];
   }
 
-  static consteval auto get_member_ptrs() {
-    using std::meta::define_static_array;
-
-    std::array<void * Storage::*, sizeof...(Ts)> ptrs;
-    std::size_t idx = 0;
-
-    template for (constexpr auto Member :
-                  define_static_array(nonstatic_data_members_of(^^Storage) | std::views::drop(1))) {
-      ptrs[idx++] = (void* Storage::*)&[:Member:];
-    }
-    return ptrs;
-  }
+  
 
   template <typename V>
   void do_construct(variant& lhs, V&& rhs) {
