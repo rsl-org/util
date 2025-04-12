@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(PackageTest CXX)
 
-find_package(rsl CONFIG REQUIRED)
+find_package(mypkg CONFIG REQUIRED)
 
 add_executable(example src/example.cpp)
-target_link_libraries(example rsl::rsl)
+target_link_libraries(example mypkg::mypkg)
