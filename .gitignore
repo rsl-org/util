@@ -49,3 +49,5 @@
 # Caches
 .cache
 .pytest_cache
+
+.devcontainer

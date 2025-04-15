@@ -35,8 +35,6 @@ consteval std::meta::info make_variant(std::meta::info r) {
 
 template <_impl::is_enum T>
 consteval std::span<T const> make_transitions() {
-  using std::meta::define_static_array;
-
   std::vector<T> transitions;
   for (auto enumerator : enumerators_of(^^T)) {
     transitions.push_back(extract<T>(enumerator));

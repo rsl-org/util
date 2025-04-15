@@ -14,7 +14,6 @@ consteval void fail() {
 
 consteval void fail(std::string_view message) {
     using std::meta::reflect_value;
-    using std::meta::define_static_string;
     extract<void(*)()>(substitute(^^_fail::fail, {reflect_value(define_static_string(message))}))();
 }
 }
