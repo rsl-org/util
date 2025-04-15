@@ -106,7 +106,7 @@ struct Accessor {
   template <std::size_t Idx, typename S>
   [[gnu::always_inline]]
   constexpr static decltype(auto) get(S&& storage) noexcept {
-    return std::forward_like<S>(storage.[:Ptrs...[Idx]:]);
+    return std::forward_like<S>(std::forward<S>(storage).[:Ptrs...[Idx]:]);
   }
 
   template <std::size_t Idx, typename S>
