@@ -24,7 +24,10 @@ Checks: "*,
         -readability-identifier-length,
         -modernize-use-designated-initializers,
         -misc-include-cleaner,
-        -misc-use-internal-linkage
+        -misc-use-internal-linkage,
+        -cppcoreguidelines-noexcept-move-operations,
+        -hicpp-noexcept-move,
+        -performance-noexcept-move-constructor
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''

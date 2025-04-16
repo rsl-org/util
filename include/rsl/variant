@@ -10,6 +10,7 @@
 #include <rsl/_impl/is_hashable.hpp>
 #include <rsl/_impl/to_string.hpp>
 #include <rsl/_impl/index_of.hpp>
+#include <rsl/_impl/member_cache.hpp>
 
 namespace rsl {
 
@@ -100,24 +101,6 @@ struct Alternative {
   explicit constexpr Alternative(std::in_place_t, Args&&... args)
       : value(std::forward<Args>(args)...) {}
 };
-
-template <auto... Ptrs>
-struct Accessor {
-  template <std::size_t Idx, typename S>
-  [[gnu::always_inline]]
-  constexpr static decltype(auto) get(S&& storage) noexcept {
-    return std::forward_like<S>(std::forward<S>(storage).[:Ptrs...[Idx]:]);
-  }
-
-  template <std::size_t Idx, typename S>
-  [[gnu::always_inline]]
-  constexpr static decltype(auto) get_addr(S&& storage) noexcept {
-    return std::addressof(std::forward<S>(storage).[:Ptrs...[Idx]:]);
-  }
-};
-
-template <auto... Ptrs>
-constexpr inline Accessor<Ptrs...> accessor{};
 }  // namespace _variant_impl
 
 namespace _visit_impl {
@@ -380,14 +363,7 @@ class variant {
                                                   {std::meta::reflect_value(idx++), ^^Ts}))...});
   };
 
-  static consteval auto get_member_ptrs() {
-    std::vector<std::meta::info> members;
-    for (auto member : nonstatic_data_members_of(^^Storage) | std::views::drop(1)) {
-      members.push_back(std::meta::reflect_value(member));
-    }
-    return substitute(^^_variant_impl::accessor, members);
-  }
-  constexpr static auto member_ptrs = [:get_member_ptrs():];
+  constexpr static auto member_ptrs = [:_impl::cache_members(nonstatic_data_members_of(^^Storage) | std::views::drop(1)):];
 
   union {
     Storage storage;
