@@ -114,25 +114,27 @@ public:
       : storage{values...} {}
 
   template <class... UTypes>
-    requires(sizeof...(UTypes) == sizeof...(Types) && disambiguation_constraint<UTypes...> &&
+    requires(sizeof...(UTypes) == sizeof...(Types) &&
+             !(std::reference_constructs_from_temporary_v<Types, UTypes &&> ||
+               ...) &&  // TODO required?
+             disambiguation_constraint<UTypes...> &&
              (std::is_constructible_v<Types, UTypes> && ...))
   constexpr explicit(!(std::is_convertible_v<UTypes, Types> && ...)) tuple(UTypes&&... values)
       : storage(std::forward<UTypes>(values)...) {}
 
   template <class... UTypes>
-    requires(sizeof...(UTypes) == sizeof...(Types) && (std::reference_constructs_from_temporary_v<Types, UTypes &&> || ...))
+    requires(sizeof...(UTypes) == sizeof...(Types) &&
+             (std::reference_constructs_from_temporary_v<Types, UTypes &&> || ...))
   constexpr tuple(UTypes&&... values) = delete;
 
-  tuple(const tuple&)
-    noexcept (std::is_nothrow_copy_constructible_v<Storage>)    
+  tuple(const tuple&) noexcept(std::is_nothrow_copy_constructible_v<Storage>)
     requires(std::is_copy_constructible_v<Storage>)
   = default;
 
-  tuple(tuple&&) 
-    noexcept (std::is_nothrow_move_constructible_v<Storage>)    
-    requires (std::is_move_constructible_v<Storage>)
-    = default;
-    
+  tuple(tuple&&) noexcept(std::is_nothrow_move_constructible_v<Storage>)
+    requires(std::is_move_constructible_v<Storage>)
+  = default;
+
   //   template <class... UTypes>
   //   constexpr explicit(true /* TODO*/) tuple(tuple<UTypes...>&);
   //   template <class... UTypes>
@@ -260,8 +262,24 @@ constexpr tuple<TTypes&...> tie(TTypes&... values) noexcept {
   return {values...};
 }
 
-// template <tuple_like... Tuples>
-// constexpr tuple<CTypes...> tuple_cat(Tuples&&...);
+//! non-standard extension
+template <_tuple_impl::tuple_like R, _tuple_impl::tuple_like L> // TODO underconstrained?
+constexpr auto operator+(R&& rhs, L&& lhs) {
+  auto&& [... rhs_members] = rhs;
+  auto&& [... lhs_members] = lhs;
+  return tuple<std::remove_cvref_t<decltype(rhs_members)>...,
+               std::remove_cvref_t<decltype(lhs_members)>...>(std::forward_like<R>(rhs_members)...,
+                                                              std::forward_like<L>(lhs_members)...);
+}
+
+template <_tuple_impl::tuple_like... Tuples>
+constexpr auto tuple_cat(Tuples&&... tuples) {
+  if constexpr (sizeof...(Tuples) == 0) {
+    return std::tuple<>();
+  } else {
+    return (tuples + ...);
+  }
+}
 
 // [tuple.apply], calling a function with a tuple of arguments
 namespace _tuple_impl {
