@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <memory>
 
+#include <rsl/_impl/index_of.hpp>
 #include <rsl/_impl/member_cache.hpp>
 
 #ifndef RSL_STD_COMPAT
@@ -67,9 +68,12 @@ namespace _tuple_impl {
 // TODO ranges::subrange
 template <class T>
 concept tuple_like =
-    has_template_arguments(^^T) &&
-    (template_of(^^T) == ^^std::array || template_of(^^T) == ^^std::complex ||
-     template_of(^^T) == ^^std::pair || template_of(^^T) == ^^tuple);  // exposition only
+    has_template_arguments(remove_cvref(^^T)) &&
+    (template_of(remove_cvref(^^T)) == ^^std::array || template_of(remove_cvref(^^T)) == ^^std::complex ||
+     template_of(remove_cvref(^^T)) == ^^std::pair || template_of(remove_cvref(^^T)) == ^^tuple);  // exposition only
+
+template <class T>
+concept is_rsl_tuple = has_template_arguments(remove_cvref(^^T)) && template_of(remove_cvref(^^T)) == ^^tuple;
 
 template <typename T>
 void test_implicit_default_constructibility(T) {
@@ -242,6 +246,12 @@ public:
     return accessor.template get<I>(std::forward<Self>(self).storage);
   }
 
+  template <typename T, class Self>
+  constexpr decltype(auto) get(this Self&& self) {
+    return accessor.template get<_impl::index_of<T, _impl::TypeList<Types...>>>(std::forward<Self>(self).storage);
+  }
+  
+
   // [tuple.assign], tuple assignment
   //   constexpr tuple& operator=(const tuple&);
   //   constexpr const tuple& operator=(const tuple&) const;
@@ -306,7 +316,7 @@ constexpr tuple<TTypes&...> tie(TTypes&... values) noexcept {
 }
 
 //! non-standard extension
-template <_tuple_impl::tuple_like R, _tuple_impl::tuple_like L>  // TODO underconstrained?
+template <_tuple_impl::is_rsl_tuple R, _tuple_impl::is_rsl_tuple L>
 constexpr auto operator+(R&& rhs, L&& lhs) {
   auto&& [... rhs_members] = rhs;
   auto&& [... lhs_members] = lhs;
@@ -315,12 +325,12 @@ constexpr auto operator+(R&& rhs, L&& lhs) {
                                                               std::forward_like<L>(lhs_members)...);
 }
 
-template <_tuple_impl::tuple_like... Tuples>
+template <_tuple_impl::is_rsl_tuple... Tuples>
 constexpr auto tuple_cat(Tuples&&... tuples) {
   if constexpr (sizeof...(Tuples) == 0) {
     return std::tuple<>();
   } else {
-    return (tuples + ...);
+    return (std::forward<Tuples>(tuples) + ...);
   }
 }
 
@@ -347,28 +357,16 @@ constexpr T make_from_tuple(Tuple&& t) {
 }
 
 // [tuple.elem], element access
-template <std::size_t I, class... Types>
-constexpr tuple_element_t<I, tuple<Types...>>& get(tuple<Types...>& obj) noexcept {
-  return obj.template get<I>();
+template <std::size_t I, _tuple_impl::is_rsl_tuple T>
+constexpr decltype(auto) get(T&& obj) noexcept {
+  return std::forward<T>(obj).template get<I>();
 }
 
-template <std::size_t I, class... Types>
-constexpr tuple_element_t<I, tuple<Types...>>&& get(tuple<Types...>&& obj) noexcept {
-  return std::move(obj).template get<I>();
+template <typename T, _tuple_impl::is_rsl_tuple U>
+constexpr decltype(auto) get(U&& obj) noexcept {
+  return std::forward<U>(obj).template get<T>();
 }
 
-template <std::size_t I, class... Types>
-constexpr tuple_element_t<I, tuple<Types...>> const& get(tuple<Types...> const& obj) noexcept {
-  return obj.template get<I>();
-}
-
-template <std::size_t I, class... Types>
-constexpr tuple_element_t<I, tuple<Types...>> const&& get(tuple<Types...> const&& obj) noexcept {
-  return static_cast<tuple<Types...> const&&>(obj).template get<I>();
-}
-
-// template <class T, class... Types>
-// constexpr T& get(tuple<Types...>& t) noexcept;
 // template <class T, class... Types>
 // constexpr T&& get(tuple<Types...>&& t) noexcept;
 // template <class T, class... Types>
