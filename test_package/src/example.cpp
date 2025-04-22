@@ -1,12 +1,6 @@
-#include "mypkg.h"
-#include <vector>
-#include <string>
+#include <rsl/variant>
+#include <rsl/span>
 
 int main() {
-    pkg();
-
-    std::vector<std::string> vec;
-    vec.push_back("test_package");
-
-    pkg_print_vector(vec);
+    
 }
