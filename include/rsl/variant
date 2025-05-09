@@ -202,99 +202,15 @@ using get_t = std::conditional_t<std::is_lvalue_reference_v<V>, Alt&, Alt&&>;
 template <typename F, typename... Vs>
 using visit_result_t = std::invoke_result_t<F, get_t<0, Vs>...>;
 
-template <int I>
-struct VisitStrategy;
-
-template <>
-struct VisitStrategy<-1> {
-  template <typename R, typename F, typename... Vs, std::size_t... Idx>
-  constexpr static decltype(auto) visit_impl(std::index_sequence<Idx...>,
-                                             std::size_t index,
-                                             F&& visitor,
-                                             Vs&&... variants) {
-    using Impl                                = VisitImpl<Vs...>;
-    using function_type                       = R (*)(F&&, Vs&&...);
-    static constexpr function_type dispatch[] = {&Impl::template visit<Idx>...};
-    return dispatch[index](std::forward<F>(visitor), std::forward<Vs>(variants)...);
-  }
-
-  template <typename R, typename F, typename... Vs>
-  constexpr static decltype(auto) visit_at(std::size_t idx, F&& visitor, Vs&&... variants) {
-    constexpr auto states = VisitImpl<Vs...>::max_index;
-    return visit_impl<R>(std::make_index_sequence<states>{},
-                         idx,
-                         std::forward<F>(visitor),
-                         std::forward<Vs>(variants)...);
-  }
-};
-
-#define RSL_VISIT_CASE(Idx)                                                        \
-  case (Idx):                                                                      \
-    if constexpr ((Idx) < VisitImpl<Vs...>::max_index) {                           \
-      return VisitImpl<Vs...>::template visit<Idx>(std::forward<F>(visitor),       \
-                                                   std::forward<Vs>(variants)...); \
-    }                                                                              \
-    std::unreachable();
-
-#define RSL_GENERATE_STRATEGY(Idx, Stamper)                                                    \
-  template <>                                                                                  \
-  struct VisitStrategy<Idx> {                                                                  \
-    template <typename, typename F, typename... Vs>                                            \
-    static constexpr decltype(auto) visit_at(std::size_t idx, F&& visitor, Vs&&... variants) { \
-      switch (idx) {                                                                           \
-        Stamper(0, RSL_VISIT_CASE);                                                            \
-        default:                                                                               \
-          _variant_impl::throw_bad_variant_access((variants.valueless_by_exception() || ...)); \
-      }                                                                                        \
-    }                                                                                          \
-  }
-
-#define RSL_STAMP4(Offset, Fnc) Fnc(Offset) Fnc((Offset) + 1) Fnc((Offset) + 2) Fnc((Offset) + 3)
-
-#define RSL_STAMP16(Offset, Fnc) \
-  RSL_STAMP4(Offset, Fnc)        \
-  RSL_STAMP4((Offset) + 4, Fnc)  \
-  RSL_STAMP4((Offset) + 8, Fnc)  \
-  RSL_STAMP4((Offset) + 12, Fnc)
-
-#define RSL_STAMP64(Offset, Fnc)  \
-  RSL_STAMP16(Offset, Fnc)        \
-  RSL_STAMP16((Offset) + 16, Fnc) \
-  RSL_STAMP16((Offset) + 32, Fnc) \
-  RSL_STAMP16((Offset) + 48, Fnc)
-
-#define RSL_STAMP256(Offset, Fnc)  \
-  RSL_STAMP64(Offset, Fnc)         \
-  RSL_STAMP64((Offset) + 64, Fnc)  \
-  RSL_STAMP64((Offset) + 128, Fnc) \
-  RSL_STAMP64((Offset) + 192, Fnc)
-
-#define RSL_STAMP(Count) RSL_STAMP##Count
-
-RSL_GENERATE_STRATEGY(1, RSL_STAMP(4));    // 4^1 potential states
-RSL_GENERATE_STRATEGY(2, RSL_STAMP(16));   // 4^2 potential states
-RSL_GENERATE_STRATEGY(3, RSL_STAMP(64));   // 4^3 potential states
-RSL_GENERATE_STRATEGY(4, RSL_STAMP(256));  // 4^4 potential states
-
-#undef RSL_VISIT_CASE
-#undef RSL_GENERATE_STRATEGY
-#undef RSL_STAMP4
-#undef RSL_STAMP64
-#undef RSL_STAMP4256
-#undef RSL_STAMP
-
 template <typename R, typename F, typename... Vs>
 constexpr R visit_alt_at(std::size_t idx, F&& visitor, Vs&&... variants) {
-  constexpr static auto max_index = VisitImpl<Vs...>::max_index;
-  using visit_helper              = VisitStrategy<max_index <= 4     ? 1
-                                                  : max_index <= 16  ? 2
-                                                  : max_index <= 64  ? 3
-                                                  : max_index <= 256 ? 4
-                                                                     : -1>;
-
-  return visit_helper::template visit_at<R>(idx,
-                                            std::forward<F>(visitor),
-                                            std::forward<Vs>(variants)...);
+  constexpr static std::size_t max_index = VisitImpl<Vs...>::max_index;
+  template for (constexpr size_t Idx : std::views::iota(0ZU, max_index)) {
+    if (idx == Idx) {
+      return VisitImpl<Vs...>::template visit<Idx>(std::forward<F>(visitor), std::forward<Vs>(variants)...);
+    }
+  }
+  _variant_impl::throw_bad_variant_access((variants.valueless_by_exception() || ...));
 }
 
 template <typename F>
