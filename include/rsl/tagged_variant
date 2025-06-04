@@ -2,6 +2,7 @@
 #include <experimental/meta>
 #include <type_traits>
 
+#include <rsl/_impl/is_hashable.hpp>
 #include <rsl/variant>
 
 namespace rsl {
@@ -22,17 +23,6 @@ template <typename T>
 constexpr inline _impl::TypeTag<T> type{};
 
 namespace _tagged_variant_impl {
-consteval std::meta::info make_variant(std::meta::info r) {
-  std::vector<std::meta::info> types;
-  for (auto enumerator : enumerators_of(r)) {
-    auto annotations     = annotations_of(enumerator);
-    auto annotation_type = type_of(annotations[0]);
-    auto alt_type        = dealias(substitute(^^_impl::unwrap_type_tag, {annotation_type}));
-    types.push_back(alt_type);
-  }
-  return substitute(^^rsl::variant, types);
-}
-
 template <_impl::is_enum T>
 consteval std::span<T const> make_transitions() {
   std::vector<T> transitions;
@@ -56,38 +46,124 @@ consteval std::size_t find_inverse_transition(T value) {
 
 template <auto V>
 constexpr inline auto inverse_transition = find_inverse_transition(V);
-}  // namespace _tagged_variant_impl
 
-template <_impl::is_enum T>
-using variant_for = [:_tagged_variant_impl::make_variant(^^T):];
+template <_impl::is_enum E>
+constexpr static auto transitions = _tagged_variant_impl::make_transitions<E>();
 
-template <_impl::is_enum T, typename... Ts>
-  requires(std::same_as<rsl::variant_for<T>, rsl::variant<Ts...>>)
-constexpr T get_tag(variant<Ts...> const& variant_) {
-  // get transition array
-  constexpr static auto transitions = _tagged_variant_impl::make_transitions<T>();
-  return transitions[variant_.index()];
+template <_impl::is_enum E>
+consteval std::meta::info make_storage() {
+  union Storage;
+  consteval {
+    std::size_t idx = 0;
+    auto members    = std::vector{data_member_spec(^^char, {.name = "dummy"})};
+
+    for (auto enumerator : enumerators_of(^^E)) {
+      auto annotations     = annotations_of(enumerator);
+      auto annotation_type = type_of(annotations[0]);
+      auto alt_type        = dealias(substitute(^^_impl::unwrap_type_tag, {annotation_type}));
+      members.push_back(data_member_spec(alt_type, {.name = identifier_of(enumerator)}));
+    }
+    define_aggregate(^^Storage, members);
+  };
+  return ^^Storage;
 }
 
-template <auto E, typename... Ts>
-  requires(_impl::is_enum<decltype(E)> &&
-           std::same_as<rsl::variant_for<decltype(E)>, rsl::variant<Ts...>>)
-constexpr bool holds_alternative(variant<Ts...> const& variant_) noexcept {
-  constexpr static auto transitions = _tagged_variant_impl::make_transitions<decltype(E)>();
-  return transitions[variant_.index()] == E;
+template <_impl::is_enum E>
+using Storage = [:make_storage<E>():];
+}  // namespace _tagged_variant_impl
+
+template <typename E>
+struct tagged_variant : public _variant_impl::variant_base<_tagged_variant_impl::Storage<E>> {
+  using storage_type = _tagged_variant_impl::Storage<E>;
+  using base         = _variant_impl::variant_base<storage_type>;
+
+public:
+  using _variant_impl::variant_base<storage_type>::variant_base;
+  constexpr tagged_variant(tagged_variant const&)            = default;
+  constexpr tagged_variant(tagged_variant&&)                 = default;
+  constexpr tagged_variant& operator=(tagged_variant const&) = default;
+  constexpr tagged_variant& operator=(tagged_variant&&)      = default;
+  constexpr ~tagged_variant()                                = default;
+
+  using tags = E;
+
+  storage_type* operator->() { return &this->storage; }
+  storage_type* operator->() const { return &this->storage; }
+  storage_type const* operator*() { return &this->storage; }
+  storage_type const* operator*() const { return &this->storage; }
+
+  explicit(false) operator E() const { return _tagged_variant_impl::transitions<E>[this->index()]; }
+
+  using base::emplace;
+  using base::get;
+  using base::get_alt;  // TODO hide
+  using base::index;
+  using base::swap;
+  using base::valueless_by_exception;
+
+  template <typename Self, typename V>
+  constexpr decltype(auto) visit(this Self&& self, V&& visitor) {
+    return rsl::visit(std::forward<V>(visitor), std::forward<Self>(self));
+  }
+};
+
+template <_impl::is_enum E>
+constexpr E get_tag(tagged_variant<E> const& variant_) {
+  return _tagged_variant_impl::transitions<E>[variant_.index()];
+}
+
+template <auto E>
+  requires(_impl::is_enum<decltype(E)>)
+constexpr bool holds_alternative(tagged_variant<decltype(E)> const& variant_) noexcept {
+  return _tagged_variant_impl::transitions<decltype(E)>[variant_.index()] == E;
 }
 
 template <auto E, _variant_impl::has_get V>
   requires(_impl::is_enum<decltype(E)> &&
-           std::same_as<rsl::variant_for<decltype(E)>, std::remove_cvref_t<V>>)
+           std::same_as<rsl::tagged_variant<decltype(E)>, std::remove_cvref_t<V>>)
 constexpr decltype(auto) get(V&& variant_) {
+  // TODO underconstrained
   return rsl::get<_tagged_variant_impl::inverse_transition<E>>(std::forward<V>(variant_));
 }
 
-template <auto E, typename... Ts>
-  requires(_impl::is_enum<decltype(E)> &&
-           std::same_as<rsl::variant_for<decltype(E)>, rsl::variant<Ts...>>)
-constexpr auto* get_if(variant<Ts...>* variant_) noexcept {
+template <auto E>
+  requires(_impl::is_enum<decltype(E)>)
+constexpr auto* get_if(tagged_variant<decltype(E)>* variant_) noexcept {
   return rsl::get_if<_tagged_variant_impl::inverse_transition<E>>(variant_);
 }
+
+namespace _impl {
+
+template <typename E>
+concept all_alts_hashable = std::ranges::all_of(
+    rsl::tagged_variant<E>::alternatives,
+    std::ranges::transform([](auto R) { return extract<bool>(substitute(^^is_hashable, {R})); }));
+
+template <typename E>
+concept all_alts_noexcept_hashable =
+    std::ranges::all_of(rsl::tagged_variant<E>::alternatives, std::ranges::transform([](auto R) {
+                          return extract<bool>(
+                              substitute(^^std::is_nothrow_invocable_v,
+                                         {substitute(^^std::hash, remove_const(R))}));
+                        }));
+}  // namespace _impl
 }  // namespace rsl
+
+template <typename E>
+  requires(rsl::_impl::all_alts_hashable<E>)
+struct std::hash<rsl::tagged_variant<E>> {
+  using result_type = std::size_t;
+
+  std::size_t operator()(rsl::tagged_variant<E> const& obj) const
+      noexcept(rsl::_impl::all_alts_noexcept_hashable<E>) {
+    if (obj.valueless_by_exception()) {
+      constexpr static std::size_t valueless_hash = 0x22c08c8cbcae8fc4;
+      return valueless_hash;
+    }
+    return obj.index() + rsl::visit(
+                             []<typename T>(T const& value) {
+                               return std::hash<std::remove_cvref_t<T>>{}(value);
+                             },
+                             obj);
+  }
+};

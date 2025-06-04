@@ -138,7 +138,7 @@ private:
 
   Storage storage;
 
-  static constexpr auto accessor = [:_impl::cache_members(nonstatic_data_members_of(^^Storage)):];
+  static constexpr auto accessor = [:_impl::cache_members(nonstatic_data_members_of(^^Storage, std::meta::access_context::unchecked())):];
 
   template <typename... UTypes>
   static constexpr auto disambiguation_constraint =

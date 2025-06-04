@@ -256,7 +256,7 @@ public:
   constexpr explicit(false) operator std::meta::info() const {
     std::vector args = {^^CharT};
     for (auto c : *this) {
-      args.push_back(std::meta::reflect_value(c));
+      args.push_back(std::meta::reflect_constant(c));
     }
     return substitute(^^_impl::fixed_array, args);
   }

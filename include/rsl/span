@@ -163,7 +163,7 @@ public:
     if consteval {
       std::vector elements = {^^typename std::remove_cvref_t<T>::element_type};
       for (auto const& element : self) {
-        elements.push_back(std::meta::reflect_value(element));
+        elements.push_back(std::meta::reflect_constant(element));
       }
       return substitute(^^_impl::fixed_array, elements);
     }

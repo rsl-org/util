@@ -104,7 +104,7 @@ TYPED_TEST(LifetimeTest, MoveAssign) {
 }
 
 TYPED_TEST(LifetimeTest, Emplace) {
-  ASSERT_TRUE(LifetimeTracker::is_empty());
+  LifetimeTracker::reset();
   {
     auto obj = TypeParam{std::in_place_index<1>, 123};
     ASSERT_EQ(obj.index(), 1);

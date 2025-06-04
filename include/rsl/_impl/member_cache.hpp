@@ -5,28 +5,31 @@
 #include <experimental/meta>
 
 namespace rsl::_impl {
-template <auto... Ptrs>
+template <auto... Members>
 struct MemberAccessor {
   template <std::size_t Idx, typename S>
   [[gnu::always_inline]]
   constexpr static decltype(auto) get(S&& storage) noexcept {
-    return std::forward_like<S>(std::forward<S>(storage).[:Ptrs...[Idx]:]);
+    return std::forward_like<S>(storage.[:Members...[Idx]:]);
   }
 
   template <std::size_t Idx, typename S>
   [[gnu::always_inline]]
   constexpr static decltype(auto) get_addr(S&& storage) noexcept {
-    return std::addressof(std::forward<S>(storage).[:Ptrs...[Idx]:]);
+    return std::addressof(std::forward<S>(storage).[:Members...[Idx]:]);
   }
+
+  constexpr static auto types = std::array{dealias(type_of(Members))...};
+  constexpr static auto count = sizeof...(Members);
 };
 
-template <auto... Ptrs>
-constexpr inline MemberAccessor<Ptrs...> member_cache{};
+template <auto... Members>
+constexpr inline MemberAccessor<Members...> member_cache{};
 
 consteval auto cache_members(auto&& member_range) {
   std::vector<std::meta::info> members;
   for (auto member : member_range) {
-    members.push_back(std::meta::reflect_value(member));
+    members.push_back(std::meta::reflect_constant(member));
   }
   return substitute(^^member_cache, members);
 }

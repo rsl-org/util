@@ -1,1 +1,4 @@
-target_sources(rsl_test PRIVATE generate.cpp access.cpp)
+target_sources(rsl_test PRIVATE 
+    access.cpp
+    switch.cpp
+)

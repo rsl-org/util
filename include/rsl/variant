@@ -9,12 +9,12 @@
 
 #include <rsl/_impl/is_hashable.hpp>
 #include <rsl/_impl/to_string.hpp>
-#include <rsl/_impl/index_of.hpp>
 #include <rsl/_impl/member_cache.hpp>
+#include <rsl/_impl/index_of.hpp>
+
+#include <rsl/_impl/variant.hpp>
 
 namespace rsl {
-
-struct monostate {};
 
 template <std::size_t, typename>
 struct variant_alternative;
@@ -22,660 +22,59 @@ struct variant_alternative;
 template <typename>
 struct variant_size;
 
-template <std::size_t Idx, typename V>
-using variant_alternative_t = typename variant_alternative<Idx, std::remove_reference_t<V>>::type;
+inline constexpr std::size_t variant_npos = _variant_impl::variant_npos;
 
-template <typename T>
-inline constexpr std::size_t variant_size_v = rsl::variant_size<T>::value;
+using bad_variant_access = _variant_impl::bad_variant_access;
 
-inline constexpr std::size_t variant_npos = -1ULL;
-
-namespace _variant_impl {
-[[noreturn]] void throw_bad_variant_access(bool);
-}
-
-class bad_variant_access : public std::exception {
-  friend void _variant_impl::throw_bad_variant_access(bool);
-  char const* reason = "bad variant access";
-  explicit bad_variant_access(const char* message) noexcept : reason(message) {}
-
-public:
-  bad_variant_access() noexcept = default;
-  [[nodiscard]] const char* what() const noexcept override { return reason; }
-};
-
-namespace _variant_impl {
-
-[[noreturn]] inline void throw_bad_variant_access(bool valueless) {
-  __builtin_debugtrap();
-#if __cpp_exceptions
-  if (valueless) {
-    throw rsl::bad_variant_access("variant is valueless");
-  }
-  throw rsl::bad_variant_access("wrong index for variant");
-#else
-  std::abort();
-#endif
-}
-
-template <typename Source, typename Dest>
-concept allowed_conversion = requires(Source obj) { std::type_identity_t<Dest[]>{std::move(obj)}; };
-
-template <std::size_t Idx, typename T>
-struct Build_FUN {
-  template <allowed_conversion<T> U>
-  auto operator()(T, U&&) -> std::integral_constant<std::size_t, Idx>;
-};
-
-template <typename V, typename = std::make_index_sequence<V::size>>
-struct Build_FUNs;
-
-template <template <typename...> class V, typename... Ts, std::size_t... Idx>
-struct Build_FUNs<V<Ts...>, std::index_sequence<Idx...>> : Build_FUN<Idx, Ts>... {
-  using Build_FUN<Idx, Ts>::operator()...;
-};
-
-template <typename T, typename V>
-inline constexpr auto selected_index = variant_npos;
-
-template <typename T, typename V>
-  requires std::invocable<Build_FUNs<V>, T, T>
-inline constexpr auto selected_index<T, V> = std::invoke_result_t<Build_FUNs<V>, T, T>::value;
-
-template <typename T>
-concept is_in_place = has_template_arguments(^^T) && (template_of(^^T) == ^^std::in_place_type_t ||
-                                                      template_of(^^T) == ^^std::in_place_index_t);
-
-template <typename T>
-concept has_get = requires(T obj) { obj.template get<0>(); };
-
+namespace _impl {
 template <typename... Ts>
-using index_type = std::conditional_t<(sizeof...(Ts) >= 255), unsigned short, unsigned char>;
-
-template <std::size_t Idx, typename T>
-struct Alternative {
-  static constexpr std::size_t index = Idx;
-  T value;
-
-  template <typename... Args>
-  explicit constexpr Alternative(std::in_place_t, Args&&... args)
-      : value(std::forward<Args>(args)...) {}
-};
-}  // namespace _variant_impl
-
-namespace _visit_impl {
-template <std::size_t... Dimensions>
-struct Key {
-  constexpr static std::size_t size      = sizeof...(Dimensions);
-  constexpr static std::size_t max_index = (Dimensions * ... * 1);
-
-  static consteval auto generate_offsets() {
-    std::array<std::size_t, size> result = {};
-    constexpr std::size_t dimensions[]   = {Dimensions...};
-    result[0]                            = 1;
-    for (std::size_t idx = 1; idx < size; ++idx) {
-      result[idx] = dimensions[idx - 1] * result[idx - 1];
-    }
-
-    return result;
-  }
-
-  constexpr static auto offsets = generate_offsets();
-
-  std::size_t index                             = static_cast<std::size_t>(-1);
-  std::size_t subindices[sizeof...(Dimensions)] = {};
-
-  constexpr explicit Key(std::size_t index_) noexcept : index(index_) {
-    std::size_t key                    = index_;
-    constexpr std::size_t dimensions[] = {Dimensions...};
-    for (std::size_t idx = 0; idx < size; ++idx) {
-      subindices[idx] = key % dimensions[idx];
-      key /= dimensions[idx];
-    }
-  }
-
-  constexpr explicit Key(std::convertible_to<std::size_t> auto... subindices_) noexcept
-    requires(sizeof...(subindices_) > 1)
-      : index(0)
-      , subindices(subindices_...) {
-    static_assert(sizeof...(subindices_) == size,
-                  "Number of indices must match the number of dimensions.");
-    for (std::size_t idx = 0; idx < size; ++idx) {
-      index += subindices[idx] * offsets[idx];
-    }
-  }
-
-  constexpr explicit operator std::size_t() const noexcept { return index; }
-  constexpr std::size_t operator[](std::size_t position) const noexcept {
-    return subindices[position];
-  }
-  friend constexpr auto operator<=>(Key const& self, std::size_t other) {
-    return self.index <=> other;
-  }
-  friend constexpr bool operator==(Key const& self, std::size_t other) {
-    return self.index == other;
-  }
-};
-
-template <typename... Variants>  // possibly cv qualified
-struct VisitImpl {
-  using key_type = Key<variant_size<std::remove_cvref_t<Variants>>::value...>;
-  static constexpr std::size_t max_index = key_type::max_index;
-
-  template <key_type Tag, typename = std::make_index_sequence<sizeof...(Variants)>>
-  struct Dispatch;
-
-  template <key_type Tag, std::size_t... Idx>
-  struct Dispatch<Tag, std::index_sequence<Idx...>> {
-    template <typename F, typename... U>
-    [[gnu::always_inline]]
-    constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
-      return std::forward<F>(visitor)(std::forward<U>(variants).template get_alt<Tag[Idx]>()...);
-    }
-  };
-
-  template <std::size_t Idx, typename F, typename... U>
-  [[gnu::always_inline]]
-  constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
-    return Dispatch<key_type{Idx}>::visit(std::forward<F>(visitor), std::forward<U>(variants)...);
-  }
-};
-
-template <typename Variant>
-struct VisitImpl<Variant> {
-  using key_type                         = std::size_t;
-  static constexpr std::size_t max_index = variant_size<std::remove_cvref_t<Variant>>::value;
-
-  template <std::size_t Idx, typename F, typename U>
-  [[gnu::always_inline]] constexpr static decltype(auto) visit(F&& visitor, U&& variant) {
-    return std::forward<F>(visitor)(std::forward<U>(variant).template get_alt<Idx>());
-  }
-};
-
-template <std::size_t Idx,
-          typename V,
-          typename Alt = rsl::variant_alternative<0, std::remove_reference_t<V>>::type>
-// TODO: Vs... might be derived from variant
-using get_t = std::conditional_t<std::is_lvalue_reference_v<V>, Alt&, Alt&&>;
-
-// non-exhaustive result type check
-template <typename F, typename... Vs>
-using visit_result_t = std::invoke_result_t<F, get_t<0, Vs>...>;
-
-template <typename R, typename F, typename... Vs>
-constexpr R visit_alt_at(std::size_t idx, F&& visitor, Vs&&... variants) {
-  constexpr static std::size_t max_index = VisitImpl<Vs...>::max_index;
-  template for (constexpr size_t Idx : std::views::iota(0ZU, max_index)) {
-    if (idx == Idx) {
-      return VisitImpl<Vs...>::template visit<Idx>(std::forward<F>(visitor), std::forward<Vs>(variants)...);
-    }
-  }
-  _variant_impl::throw_bad_variant_access((variants.valueless_by_exception() || ...));
-}
-
-template <typename F>
-struct ValueVisitor {
-  F&& visitor;
-
-  template <typename... Alts>
-  constexpr decltype(auto) operator()(Alts&&... alternatives) const {
-    return std::invoke(std::forward<F>(visitor), std::forward<Alts>(alternatives).value...);
-  }
-};
-
-template <typename R, typename F, typename... Vs>
-constexpr R visit_at(std::size_t idx, F&& visitor, Vs&&... variants) {
-  return (visit_alt_at<R>)(idx,
-                         ValueVisitor<F>{std::forward<F>(visitor)},
-                         std::forward<Vs>(variants)...);
-}
-
-template <typename R, typename F, typename... Vs>
-constexpr R visit_alt(F&& visitor, Vs&&... variants) {
-  if constexpr (sizeof...(Vs) == 0) {
-    return std::forward<F>(visitor)();
-  } else {
-    auto const key = typename _visit_impl::VisitImpl<Vs...>::key_type(variants.index()...);
-    return _visit_impl::visit_alt_at<R>(std::size_t{key},
-                                        std::forward<F>(visitor),
-                                        std::forward<Vs>(variants)...);
-  }
-}
-}  // namespace _visit_impl
-
-template <typename R, typename F, typename... Vs>
-constexpr R visit(F&& visitor, Vs&&... variants) {
-  if constexpr (sizeof...(Vs) == 0) {
-    return std::forward<F>(visitor)();
-  } else {
-    auto const key = typename _visit_impl::VisitImpl<Vs...>::key_type(variants.index()...);
-    return _visit_impl::visit_at<R>(std::size_t{key},
-                                    std::forward<F>(visitor),
-                                    std::forward<Vs>(variants)...);
-  }
-}
-
-template <typename F, typename... Vs>
-constexpr decltype(auto) visit(F&& visitor, Vs&&... variants) {
-  using return_type = _visit_impl::visit_result_t<F, Vs...>;
-  return rsl::visit<return_type>(std::forward<F>(visitor), std::forward<Vs>(variants)...);
-}
-
-template <typename... Ts>
-class variant {
-  static_assert(sizeof...(Ts) > 0, "variant must contain at least one alternative");
-  static_assert((!std::is_reference_v<Ts> && ...), "variant must not have reference alternatives");
-  static_assert((!std::is_void_v<Ts> && ...), "variant must not have void alternatives");
-
-  using index_t              = _variant_impl::index_type<Ts...>;
-  static constexpr auto npos = index_t(-1ULL);
-
+consteval std::meta::info make_storage() {
   union Storage;
   consteval {
     std::size_t idx = 0;
     define_aggregate(^^Storage,
                      {data_member_spec(^^char, {.name = "dummy"}),
-                      data_member_spec(substitute(^^_variant_impl::Alternative,
-                                                  {std::meta::reflect_value(idx++), ^^Ts}))...});
+                    data_member_spec(^^Ts)...
+                    });
   };
+  return ^^Storage;
+}
 
-  constexpr static auto member_ptrs = [:_impl::cache_members(nonstatic_data_members_of(^^Storage) | std::views::drop(1)):];
+template <typename... Ts>
+using Storage = [:make_storage<Ts...>():];
+}  // namespace _impl
 
-  union {
-    Storage storage;
-  };
-  index_t tag = npos;
-
-  constexpr void reset() {
-    if (tag != npos) {
-      _visit_impl::visit_alt<void>([](auto&& member) { std::destroy_at(std::addressof(member)); },
-                                   *this);
-      tag = npos;
-    }
-  }
+template <typename... Ts>
+class variant
+    : public _variant_impl::variant_base<_impl::Storage<Ts...>> {
+  static_assert(sizeof...(Ts) > 0, "variant must contain at least one alternative");
+  static_assert((!std::is_reference_v<Ts> && ...), "variant must not have reference alternatives");
+  static_assert((!std::is_void_v<Ts> && ...), "variant must not have void alternatives");
+  using storage_type = _impl::Storage<Ts...>;
+  using base         = _variant_impl::variant_base<storage_type>;
 
 public:
-  // default constructor, only if alternative #0 is default constructible
-  constexpr variant() noexcept(std::is_nothrow_default_constructible_v<
-                               variant_alternative_t<0, variant>>)  // [variant.ctor]/5
-    requires(
-        std::is_default_constructible_v<variant_alternative_t<0, variant>>)  // [variant.ctor]/2
-      : variant(std::in_place_index<0>) {}                                   // [variant.ctor]/3
+  using _variant_impl::variant_base<storage_type>::variant_base;
+  constexpr variant(variant const&)            = default;
+  constexpr variant(variant&&)                 = default;
+  constexpr variant& operator=(variant const&) = default;
+  constexpr variant& operator=(variant&&)      = default;
+  constexpr ~variant()                         = default;
 
-  constexpr variant(variant const& other) = default;
-  constexpr variant(variant const& other) noexcept((std::is_nothrow_copy_assignable_v<Ts> &&
-                                                    ...))  // [variant.ctor]/8
-    requires(!std::is_trivially_destructible_v<Storage> &&
-             (std::is_copy_constructible_v<Ts> && ...))  // [variant.ctor]/9
-  {
-    do_construct(*this, other);
-  }
-
-  constexpr variant(variant&& other) = default;
-  constexpr variant(variant&& other) noexcept((std::is_nothrow_move_constructible_v<Ts> &&
-                                               ...))     // [variant.ctor]/12
-    requires(!std::is_trivially_destructible_v<Storage>  // [variant.ctor]/13
-             && (std::is_move_constructible_v<Ts> && ...))
-  {
-    do_construct(*this, std::move(other));
-  }
-
-  // converting constructor
-  template <typename T>
-    requires(sizeof...(Ts) != 0                                      // [variant.ctor]/15.1
-             && !std::same_as<std::remove_cvref_t<T>, variant>       // [variant.ctor]/15.2
-             && !_variant_impl::is_in_place<std::remove_cvref_t<T>>  // [variant.ctor]/15.3
-             && _variant_impl::selected_index<T, _impl::TypeList<Ts...>> !=
-                    variant_npos)  // [variant.ctor]/15.4, [variant.ctor]/15.5
-  constexpr explicit variant(T&& obj) noexcept(
-      std::is_nothrow_constructible_v<
-          Ts...[_variant_impl::selected_index<T, _impl::TypeList<Ts...>>],
-          T>)  // [variant.ctor]/18
-      : variant(std::in_place_index<_variant_impl::selected_index<T, _impl::TypeList<Ts...>>>,
-                std::forward<T>(obj)) {}
-
-  // in place constructors
-  template <typename T, typename... Args>
-  constexpr explicit variant(std::in_place_type_t<T>, Args&&... args) noexcept(
-      std::is_nothrow_constructible_v<T, Args...>)  // [variant.ctor]/23
-      : variant(std::in_place_index<_impl::index_of<T, _impl::TypeList<Ts...>>>,
-                std::forward<Args>(args)...) {}
-
-  template <typename T, typename U, typename... Args>
-  constexpr explicit variant(
-      std::in_place_type_t<T>,
-      std::initializer_list<U> init_list,
-      Args&&... args) noexcept(std::is_nothrow_constructible_v<T,
-                                                               std::initializer_list<U>&,
-                                                               Args...>)  // [variant.ctor]/28
-      : storage(std::in_place_index<_impl::index_of<T, _impl::TypeList<Ts...>>>,
-                init_list,
-                std::forward<Args>(args)...) {}
-
-  template <std::size_t Idx, typename... Args>
-  constexpr explicit variant(std::in_place_index_t<Idx> idx, Args&&... args) noexcept(
-      std::is_nothrow_constructible_v<Ts...[Idx], Args...>)  // [variant.ctor]/33
-      : tag(Idx) {
-    // Primary constructor
-
-    std::construct_at(&storage, '\0');
-    std::construct_at(member_ptrs.template get_addr<Idx>(storage),
-                      std::in_place,
-                      std::forward<Args>(args)...);
-  }
-
-  template <std::size_t Idx, typename U, typename... Args>
-  constexpr explicit variant(
-      std::in_place_index_t<Idx> idx,
-      std::initializer_list<U> init_list,
-      Args&&... args) noexcept(std::is_nothrow_constructible_v<Ts...[Idx],
-                                                               std::initializer_list<U>&,
-                                                               Args...>)  // noexcept not
-                                                                          // standardized
-      : tag(Idx) {
-    // Primary constructor
-
-    std::construct_at(&storage, '\0');
-    std::construct_at(member_ptrs.template get_addr<Idx>(storage),
-                      std::in_place,
-                      init_list,
-                      std::forward<Args>(args)...);
-  }
-
-  constexpr variant& operator=(variant const& other) = default;
-  constexpr variant& operator=(variant&& other)      = default;
-
-  constexpr variant& operator=(variant const& other)
-    requires(!std::is_trivially_destructible_v<Storage> && (std::is_copy_assignable_v<Ts> && ...))
-  {
-    if (this != std::addressof(other)) {
-      rsl::visit<void>([this]<typename T>(T const& obj) { this->emplace<T>(obj); }, other);
-    }
-    return *this;
-  }
-
-  constexpr variant& operator=(variant&& other) noexcept
-    requires(!std::is_trivially_destructible_v<Storage> && (std::is_move_assignable_v<Ts> && ...))
-  {
-    if (this != std::addressof(other)) {
-      rsl::visit<void>([this]<typename T>(T&& obj) { this->emplace<T>(std::forward<T>(obj)); },
-                       std::move(other));
-    }
-    return *this;
-  }
-
-  constexpr ~variant()
-    requires std::is_trivially_destructible_v<Storage>
-  = default;
-  constexpr ~variant() { reset(); }
-
-  template <std::size_t Idx, typename... Args>
-  constexpr void emplace(Args&&... args) {
-    reset();
-    std::construct_at(member_ptrs.template get_addr<Idx>(storage), std::in_place, std::forward<Args>(args)...);
-    tag = Idx;
-  }
-
-  template <typename T, typename... Args>
-  constexpr void emplace(Args&&... args) {
-    emplace<_impl::index_of<T, _impl::TypeList<Ts...>>>(std::forward<Args>(args)...);
-  }
-
-  template <std::size_t Idx, typename Self>
-  constexpr decltype(auto) get_alt(this Self&& self) {
-    static_assert(Idx < sizeof...(Ts), "Alternative index out of bounds");
-    return self.member_ptrs.template get<Idx>(std::forward<Self>(self).storage);
-  }
-
-  template <std::size_t Idx, typename Self>
-  constexpr decltype(auto) get(this Self&& self) {
-    if (self.index() != Idx) [[unlikely]] {
-      _variant_impl::throw_bad_variant_access(self.valueless_by_exception());
-    }
-
-    static_assert(Idx < sizeof...(Ts), "Alternative index out of bounds");
-    return std::forward<Self>(self).template get_alt<Idx>().value;
-  }
-
-  template <typename T, typename Self>
-  constexpr decltype(auto) get(this Self&& self) {
-    return std::forward<Self>(self).template get<_impl::index_of<T, _impl::TypeList<Ts...>>>();
-  }
+  using base::emplace;
+  using base::get;
+  using base::get_alt;  // TODO hide
+  using base::index;
+  using base::swap;
+  using base::valueless_by_exception;
 
   template <typename Self, typename V>
   constexpr decltype(auto) visit(this Self&& self, V&& visitor) {
     return rsl::visit(std::forward<V>(visitor), std::forward<Self>(self));
   }
-
-  [[nodiscard]] constexpr bool valueless_by_exception() const noexcept { return tag == npos; }
-  [[nodiscard]] constexpr std::size_t index() const noexcept {
-    if (tag != npos) {
-      return tag;
-    }
-    return variant_npos;
-  }
-
-private:
-  [[nodiscard]] constexpr bool can_nothrow_move() const {
-    constexpr bool results[] = {std::is_nothrow_move_constructible_v<Ts>...};
-    return valueless_by_exception() || results[index()];
-  }
-
-  
-
-  template <typename V>
-  void do_construct(variant& lhs, V&& rhs) {
-    lhs.reset();
-    if (rhs.valueless_by_exception()) {
-      return;
-    }
-
-    auto rhs_index = rhs.index();
-    _visit_impl::visit_alt_at<void>(
-        rhs_index,
-        [&]<typename A>(A&& rhs_alternative) {
-          using alt_t = std::remove_cvref_t<A>;
-          std::construct_at(&lhs,
-                            std::in_place_index<alt_t::index>,
-                            std::forward<A>(rhs_alternative).value);
-        },
-        std::forward<V>(rhs));
-    lhs.tag = static_cast<index_t>(rhs_index);
-  }
-
-public:
-  void swap(variant& other) {
-    if (valueless_by_exception() && other.valueless_by_exception()) {
-      // both variants valueless - do nothing
-      return;
-    }
-
-    auto lhs = this;
-    auto rhs = std::addressof(other);
-    if (can_nothrow_move() && !other.can_nothrow_move()) {
-      std::swap(lhs, rhs);
-    }
-
-    variant tmp(std::move(other));
-    if constexpr ((std::is_nothrow_move_constructible_v<Ts> && ...)) {
-      do_construct(*rhs, std::move(*lhs));
-    } else {
-      // non-standard libc++ extension
-      // try moving tmp back into other if move construction from *this fails
-      try {
-        do_construct(*rhs, std::move(*lhs));
-      } catch (...) {
-        if (tmp.can_nothrow_move()) {
-          do_construct(*rhs, std::move(tmp));
-        }
-        throw;
-      }
-    }
-    do_construct(*lhs, std::move(tmp));
-  }
 };
-
-template <typename... Ts>
-constexpr auto swap(variant<Ts...>& lhs, variant<Ts...>& rhs) noexcept(noexcept(lhs.swap(rhs)))
-    -> decltype(lhs.swap(rhs)) {
-  return lhs.swap(rhs);
-}
-
-template <typename... Ts>
-  requires(std::three_way_comparable<Ts> && ...)
-constexpr auto operator<=>(variant<Ts...> const& lhs, variant<Ts...> const& rhs)
-    -> std::common_comparison_category_t<std::compare_three_way_result_t<Ts>...> {
-  using comparison_result =
-      std::common_comparison_category_t<std::compare_three_way_result_t<Ts>...>;
-
-  if (lhs.valueless_by_exception() && rhs.valueless_by_exception()) {
-    return std::strong_ordering::equal;
-  }
-
-  if (lhs.valueless_by_exception()) {
-    return std::strong_ordering::less;
-  }
-
-  if (rhs.valueless_by_exception()) {
-    return std::strong_ordering::greater;
-  }
-
-  if (auto index_comparison = lhs.index() <=> rhs.index(); index_comparison != 0) {
-    // different alternatives active
-    return index_comparison;
-  }
-
-  return rsl::visit<comparison_result>(
-      []<typename T>(T const& lhs_value, T const& rhs_value) -> comparison_result {
-        // compare values
-        return lhs_value <=> rhs_value;
-      },
-      lhs,
-      rhs);
-}
-
-namespace _impl {
-template <typename Operator>
-struct ComparisonVisitor {
-  template <typename T1, typename T2>
-  constexpr bool operator()(T1&& lhs, T2&& rhs) {
-    static_assert(
-        std::is_convertible_v<decltype(Operator{}(std::forward<T1>(lhs), std::forward<T2>(rhs))),
-                              bool>,
-        "relational operator result isn't implicitly convertible to bool");
-    return Operator{}(std::forward<T1>(lhs), std::forward<T2>(rhs));
-  }
-};
-}  // namespace _impl
-
-template <typename... Ts>
-constexpr bool operator==(variant<Ts...> const& lhs, variant<Ts...> const& rhs) {
-  if (lhs.index() != rhs.index()) {
-    // different alternatives active
-    return false;
-  }
-  if (lhs.valueless_by_exception()) {
-    // both are valueless
-    return true;
-  }
-
-  return rsl::visit<bool>(_impl::ComparisonVisitor<std::equal_to<>>{}, lhs, rhs);
-}
-
-template <typename... Ts>
-constexpr bool operator!=(variant<Ts...> const& lhs, variant<Ts...> const& rhs) {
-  if (lhs.index() != rhs.index()) {
-    // different alternatives active
-    return true;
-  }
-  if (lhs.valueless_by_exception()) {
-    // both are valueless
-    return false;
-  }
-
-  return rsl::visit<bool>(_impl::ComparisonVisitor<std::not_equal_to<>>{}, lhs, rhs);
-}
-
-template <typename... Ts>
-constexpr bool operator<(variant<Ts...> const& lhs, variant<Ts...> const& rhs) {
-  if (rhs.valueless_by_exception()) {
-    return false;
-  }
-  if (lhs.valueless_by_exception()) {
-    return true;
-  }
-  if (lhs.index() < rhs.index()) {
-    return true;
-  }
-  if (lhs.index() > rhs.index()) {
-    return false;
-  }
-  return rsl::visit<bool>(_impl::ComparisonVisitor<std::less<>>{}, lhs, rhs);
-}
-
-template <typename... Ts>
-constexpr bool operator>(variant<Ts...> const& lhs, variant<Ts...> const& rhs) {
-  if (lhs.valueless_by_exception()) {
-    return false;
-  }
-  if (rhs.valueless_by_exception()) {
-    return true;
-  }
-  if (lhs.index() > rhs.index()) {
-    return true;
-  }
-  if (lhs.index() < rhs.index()) {
-    return false;
-  }
-  return rsl::visit<bool>(_impl::ComparisonVisitor<std::greater<>>{}, lhs, rhs);
-}
-
-template <typename... Ts>
-constexpr bool operator<=(variant<Ts...> const& lhs, variant<Ts...> const& rhs) {
-  if (lhs.valueless_by_exception()) {
-    return false;
-  }
-  if (rhs.valueless_by_exception()) {
-    return true;
-  }
-  if (lhs.index() < rhs.index()) {
-    return true;
-  }
-  if (lhs.index() > rhs.index()) {
-    return false;
-  }
-  return rsl::visit<bool>(_impl::ComparisonVisitor<std::less_equal<>>{}, lhs, rhs);
-}
-
-template <typename... Ts>
-constexpr bool operator>=(variant<Ts...> const& lhs, variant<Ts...> const& rhs) {
-  if (rhs.valueless_by_exception()) {
-    return false;
-  }
-  if (lhs.valueless_by_exception()) {
-    return true;
-  }
-  if (lhs.index() > rhs.index()) {
-    return true;
-  }
-  if (lhs.index() < rhs.index()) {
-    return false;
-  }
-  return rsl::visit<bool>(_impl::ComparisonVisitor<std::greater_equal<>>{}, lhs, rhs);
-}
-
-constexpr bool operator==(monostate, monostate) noexcept {
-  return true;
-}
-constexpr std::strong_ordering operator<=>(monostate, monostate) noexcept {
-  return std::strong_ordering::equal;
-}
 
 //? [variant.helper], variant helper classes
-
-template <typename T>
-struct variant_size;
-
 template <typename... Ts>
 struct variant_size<variant<Ts...>> : std::integral_constant<std::size_t, sizeof...(Ts)> {};
 
@@ -692,69 +91,6 @@ struct variant_alternative<Idx, variant<Ts...> const> {
   static_assert(Idx < sizeof...(Ts), "variant_alternative index out of range");
   using type = Ts...[Idx] const;
 };
-
-//? [variant.get], value access
-
-/**
- * @brief Check if the desired alternative is currently held
- * @warning non-standard extension
- * @tparam Idx index of the desired alternative
- * @tparam Ts
- * @param obj
- * @return true
- * @return false
- */
-template <std::size_t Idx, typename... Ts>
-constexpr bool holds_alternative(variant<Ts...> const& obj) noexcept {
-  return obj.index() == Idx;
-}
-
-/**
- * @brief Check if the desired alternative is currently held
- * @warning non-standard extension
- * @tparam T type of the desired alternative
- * @tparam Ts
- * @param obj
- * @return true
- * @return false
- */
-template <class T, typename... Ts>
-constexpr bool holds_alternative(variant<Ts...> const& obj) noexcept {
-  return obj.index() == _impl::index_of<T, _impl::TypeList<Ts...>>;
-}
-
-template <std::size_t Idx, _variant_impl::has_get V>
-constexpr decltype(auto) get(V&& variant_) {
-  if (variant_.index() != Idx) [[unlikely]] {
-    _variant_impl::throw_bad_variant_access(variant_.valueless_by_exception());
-  }
-  return std::forward<V>(variant_).template get<Idx>();
-}
-
-template <typename T, _variant_impl::has_get V>
-constexpr decltype(auto) get(V&& variant_) {
-  return rsl::get<T>(std::forward<V>(variant_));
-}
-
-template <std::size_t Idx, typename... Ts>
-constexpr auto get_if(variant<Ts...>* variant_) noexcept -> variant_alternative_t<Idx, variant<Ts...>>*{
-  static_assert(Idx < sizeof...(Ts),
-                std::string("index must be in [0, ") + _impl::to_string(sizeof...(Ts)) + ")");
-  static_assert(!std::is_void_v<variant_alternative_t<Idx, variant<Ts...>>>,
-                "alternative type must not be void");
-
-  if (variant_ && variant_->index() == Idx) {
-    return std::addressof((*variant_).template get_alt<Idx>().value);
-  }
-  return nullptr;
-}
-
-template <typename T, typename... Ts>
-constexpr auto* get_if(variant<Ts...>* variant_) noexcept {
-  constexpr static std::size_t index = _impl::index_of<T, _impl::TypeList<Ts...>>;
-  static_assert(index < sizeof...(Ts), "T must occur exactly once in alternatives");
-  return rsl::get_if<index>(variant_);
-}
 
 }  // namespace rsl
 
