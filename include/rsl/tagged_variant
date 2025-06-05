@@ -55,7 +55,7 @@ consteval std::meta::info make_storage() {
   union Storage;
   consteval {
     std::size_t idx = 0;
-    auto members    = std::vector{data_member_spec(^^char, {.name = "dummy"})};
+    auto members    = std::vector{data_member_spec(^^char)};
 
     for (auto enumerator : enumerators_of(^^E)) {
       auto annotations     = annotations_of(enumerator);
