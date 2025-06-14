@@ -1,10 +1,24 @@
 #include <string>
 #include <gtest/gtest.h>
-#include <rsl/variant>
-
 #include <common/assertions.h>
 
-TEST(Swap, SameIndex){
+#include <rsl/variant>
+#include <rsl/tagged_variant>
+
+enum class Foo {
+  foo [[=rsl::type<int>]],
+  bar [[=rsl::type<char>]]
+};
+
+using variant_swap_p = ::testing::Types<rsl::variant<int,float>, rsl::tagged_variant<Foo>>;
+template<typename T>
+struct VariantSwap : public testing::Test
+{
+    using type = T;
+};
+TYPED_TEST_SUITE(VariantSwap, variant_swap_p);
+
+TYPED_TEST(VariantSwap, SameIndex){
   using variant = rsl::variant<int, float>;
 
   {
@@ -25,7 +39,7 @@ TEST(Swap, SameIndex){
   }
 }
 
-TEST(Swap, DifferentIndex){
+TYPED_TEST(VariantSwap, DifferentIndex){
   using variant = rsl::variant<int, float, std::string>;
 
   {

@@ -233,23 +233,6 @@ constexpr decltype(auto) visit(F&& visitor, Vs&&... variants) {
 }
 
 namespace _variant_impl {
-static consteval std::size_t get_index_of(std::meta::info needle, auto&& types) {
-  constexpr std::size_t npos = ~0ZU;
-  std::size_t selected       = npos;
-  for (std::size_t idx = 0; idx < types.size(); ++idx) {
-    if (types[idx] != needle) {
-      continue;
-    }
-
-    if (selected != npos) {
-      return npos;
-    }
-
-    selected = idx;
-  }
-  return selected;
-}
-
 template <typename Storage>
 class variant_base {
 protected:
@@ -449,7 +432,7 @@ public:
   template <typename T, typename... Args>
   constexpr void emplace(Args&&... args) {
     // TODO is remove_reference required here?
-    emplace<get_index_of(remove_reference(^^T), alternatives.types)>(std::forward<Args>(args)...);
+    emplace<alternatives.get_index_of(remove_reference(^^T))>(std::forward<Args>(args)...);
   }
 
   template <std::size_t Idx, typename Self>
@@ -471,7 +454,7 @@ public:
   template <typename T, typename Self>
   constexpr decltype(auto) get(this Self&& self) {
     // TODO is remove_reference required here?
-    return std::forward<Self>(self).template get<get_index_of(remove_reference(^^T), alternatives.types)>();
+    return std::forward<Self>(self).template get<alternatives.get_index_of(remove_reference(^^T))>();
   }
 
   void swap(variant_base& other) {
@@ -730,7 +713,7 @@ constexpr bool holds_alternative(_variant_impl::variant_base<Storage> const& obj
  */
 template <class T, typename Storage>
 constexpr bool holds_alternative(_variant_impl::variant_base<Storage> const& obj) noexcept {
-  return obj.index() == _variant_impl::get_index_of(^^T, obj.alternatives.types);
+  return obj.index() == obj.alternatives.get_index_of(^^T);
 }
 
 template <std::size_t Idx, _variant_impl::has_get V>
@@ -763,7 +746,7 @@ constexpr auto get_if(_variant_impl::variant_base<Storage>* variant_) noexcept
 
 template <typename T, typename Storage>
 constexpr auto* get_if(_variant_impl::variant_base<Storage>* variant_) noexcept {
-  constexpr static std::size_t index = _variant_impl::get_index_of(^^T, variant_->alternatives.types);
+  constexpr static std::size_t index = variant_->alternatives.get_index_of(^^T);
   static_assert(index < variant_->alternatives.count, "T must occur exactly once in alternatives");
   return rsl::get_if<index>(variant_);
 }
