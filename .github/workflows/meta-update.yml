@@ -1,0 +1,12 @@
+name: Trigger Meta Update
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    uses: tsche/re/.github/workflows/trigger-update.yml@master
+    secrets: inherit
