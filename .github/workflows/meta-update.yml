@@ -8,5 +8,5 @@ on:
 
 jobs:
   trigger:
-    uses: tsche/re/.github/workflows/trigger-update.yml@master
+    uses: rsl-org/rsl/.github/workflows/trigger-update.yml@master
     secrets: inherit
