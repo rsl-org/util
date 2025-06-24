@@ -255,7 +255,7 @@ protected:
     }
 
     template for (constexpr auto Idx : std::views::iota(0ZU, alternatives.count)) {
-      if constexpr (std::is_nothrow_move_constructible_v<[:alternatives.types[Idx]:]>) {
+      if constexpr (std::is_nothrow_move_constructible_v<typename [:alternatives.types[Idx]:]>) {
         return true;
       }
     }
@@ -326,7 +326,7 @@ public:
   // TODO rewrite selected_index
   template <typename T>
   constexpr static auto selected_index =
-      _variant_impl::selected_index<T, [:substitute(^^_impl::TypeList, alternatives.types):]>;
+      _variant_impl::selected_index<T, typename [:substitute(^^_impl::TypeList, alternatives.types):]>;
 
   // converting constructor
   template <typename T>
@@ -371,7 +371,7 @@ public:
                                   std::initializer_list<U> init_list,
                                   Args&&... args)  //
       noexcept(std::is_nothrow_constructible_v<    //
-               [:alternatives.types[Idx]:], std::initializer_list<U>&, Args...>)
+               typename [:alternatives.types[Idx]:], std::initializer_list<U>&, Args...>)
       : discriminator(Idx) {
     // Primary constructor
 
