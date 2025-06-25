@@ -16,7 +16,7 @@
 #include <rsl/_impl/wrap_iter.hpp>
 
 #include <rsl/_impl/meta.hpp>
-#include <experimental/meta>
+#include <meta>
 
 namespace rsl {
 template <typename CharT, typename Traits = std::char_traits<CharT>>

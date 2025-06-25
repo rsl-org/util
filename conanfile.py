@@ -3,8 +3,8 @@ from conan.tools.cmake import CMake, cmake_layout
 from conan.tools.files import copy
 
 
-class RslRecipe(ConanFile):
-    name = "rsl"
+class RslUtilRecipe(ConanFile):
+    name = "rsl-util"
     version = "0.1"
     package_type = "header-library"
 
@@ -47,8 +47,11 @@ class RslRecipe(ConanFile):
         copy(self, "include/rsl/*", self.source_folder, self.package_folder)
 
     def package_info(self):
-        self.cpp_info.bindirs = []
-        self.cpp_info.libdirs = []
+        self.cpp_info.components["util"].set_property("cmake_target_name", "rsl::util")
+        self.cpp_info.components["util"].includedirs = ["include"]
+        self.cpp_info.components["util"].bindirs = []
+        self.cpp_info.components["util"].libdirs = []
+        self.cpp_info.components["util"].libs = []
 
     def package_id(self):
         self.info.clear()

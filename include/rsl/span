@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <iterator>
 
-#include <experimental/meta>
+#include <meta>
 
 #include <rsl/_impl/wrap_iter.hpp>
 #include <rsl/_impl/meta.hpp>

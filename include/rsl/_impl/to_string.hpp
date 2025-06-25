@@ -22,13 +22,20 @@ constexpr std::string utos(std::uint64_t value) {
   return {out.rbegin(), out.rend()};
 }
 
-constexpr std::string to_string(std::integral auto value){
-  if constexpr (std::is_signed_v<decltype(value)>){
-    if (value < 0){
+constexpr std::uint64_t stou(std::string_view str) {
+  unsigned result = 0;
+  for (char const c : str) {
+    (result *= 10) += c - '0';
+  }
+  return result;
+}
+
+constexpr std::string to_string(std::integral auto value) {
+  if constexpr (std::is_signed_v<decltype(value)>) {
+    if (value < 0) {
       return std::string{'-'} + utos(-value);
     }
   }
   return utos(value);
 }
-}
-
+}  // namespace rsl::_impl

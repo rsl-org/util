@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <utility>
 #include <memory>
-#include <experimental/meta>
+#include <meta>
 
 namespace rsl::_impl {
 template <auto... Members>

@@ -4,7 +4,7 @@
 #include <utility>
 #include <cstddef>
 #include <concepts>
-#include <experimental/meta>
+#include <meta>
 
 #include <rsl/_impl/member_cache.hpp>
 #include <rsl/_impl/index_of.hpp>

@@ -1,5 +1,5 @@
 #include <compare>  // see [compare.syn]
-#include <experimental/meta>
+#include <meta>
 #include <array>
 #include <utility>
 #include <type_traits>

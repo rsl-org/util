@@ -5,7 +5,7 @@
 #include <utility>
 #include <memory>
 
-#include <experimental/meta>
+#include <meta>
 
 #include <rsl/_impl/is_hashable.hpp>
 #include <rsl/_impl/to_string.hpp>
