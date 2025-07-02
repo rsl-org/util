@@ -18,6 +18,7 @@ TEST(Expect, ArrayOfChecks) {
   };
 
   for (auto const& check : checks) {
-    ASSERT_TRUE(check(50));
+    int x = 50;
+    ASSERT_TRUE(check(x));
   }
 }

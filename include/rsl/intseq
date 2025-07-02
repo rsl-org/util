@@ -1,0 +1,63 @@
+#pragma once
+#include <meta>
+#include <vector>
+#include <ranges>
+#include <type_traits>
+
+// reimplements index_sequence (see https://standards.pydong.org/c++/intseq) reflectively
+// with the addition of P1789 structured binding support
+
+namespace rsl {
+
+template <typename T, T... Is>
+struct integer_sequence {
+  static_assert(std::is_integral_v<T>,
+                "integer_sequence must be sequences of integers");  // [intseq.intseq]/1
+
+  using value_type = T;
+  static constexpr size_t size() noexcept { return sizeof...(Is); }
+};
+
+template <size_t... Is>
+using index_sequence = integer_sequence<size_t, Is...>;
+
+namespace _intseq_impl {
+template <typename T>
+consteval std::meta::info make_intseq(T count) {
+  auto args = std::vector{^^T};
+  for (T idx = 0; idx < count; ++idx) {
+    args.push_back(std::meta::reflect_constant(idx));
+  }
+  return substitute(^^integer_sequence, args);
+}
+}  // namespace _intseq_impl
+
+template <typename T, T N>
+using make_integer_sequence = [:make_intseq(N):];
+
+template <std::size_t N>
+using make_index_sequence = make_integer_sequence<std::size_t, N>;
+
+template <typename... T>
+using index_sequence_for = make_index_sequence<sizeof...(T)>;
+
+template <std::size_t Idx, typename T, T... Is>
+  requires(Idx < sizeof...(Is))
+constexpr T get(integer_sequence<T, Is...>) noexcept {
+  return Is...[Idx];
+}
+
+//! non-standard utility
+template <std::size_t N>
+constexpr static auto&& seq = [:std::meta::reflect_constant_array(std::views::iota(0zu, N)):];
+}  // namespace rsl
+
+template <typename T, T... Is>
+struct std::tuple_size<rsl::integer_sequence<T, Is...>>
+    : std::integral_constant<std::size_t, sizeof...(Is)> {};
+
+template <std::size_t Idx, typename T, T... Is>
+  requires(Idx < sizeof...(Is))
+struct std::tuple_element<Idx, rsl::integer_sequence<T, Is...>> {
+  using type = T;
+};
