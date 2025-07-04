@@ -3,7 +3,7 @@
 #include <concepts>
 #include <cstdint>
 
-namespace rsl::_impl {
+namespace rsl::util {
 
 constexpr std::string to_string(bool value) {
   return value ? "true" : "false";

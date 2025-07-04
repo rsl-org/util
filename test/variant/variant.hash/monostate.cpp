@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <rsl/variant>
+#include <rsl/_impl/concepts.hpp>
 
 #include <common/assertions.h>
 

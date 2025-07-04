@@ -2,7 +2,7 @@
 #include <meta>
 #include <type_traits>
 
-#include <rsl/_impl/is_hashable.hpp>
+#include <rsl/_impl/concepts.hpp>
 #include <rsl/variant>
 
 namespace rsl {

@@ -4,12 +4,14 @@
 #include <concepts>
 #include <format>
 #include <string>
+#include <functional>
 
 #include <rsl/intseq>
+#include <rsl/meta_traits>
 
 #include <rsl/_impl/concepts.hpp>
 #include <rsl/_impl/operators.hpp>
-#include <rsl/_impl/to_string.hpp>
+#include <rsl/util/to_string.hpp>
 
 namespace rsl::_expect_impl {
 template <typename T>
@@ -57,7 +59,7 @@ constexpr auto make_expr(R rhs_, L lhs_) {
 }
 
 template <typename T>
-concept is_binary_expr = _impl::is_specialization<T, ^^BinaryExpr>;
+concept is_binary_expr = meta::is_specialization<T, ^^BinaryExpr>;
 
 template <typename T>
 concept is_binary_comparison = is_binary_expr<T> && is_comparison(T::op);
@@ -69,7 +71,7 @@ struct BinaryExpr {
   L lhs;
 
   constexpr auto get_left_most() const {
-    if constexpr (_impl::is_specialization<L, ^^BinaryExpr>) {
+    if constexpr (meta::is_specialization<L, ^^BinaryExpr>) {
       return lhs.get_left_most();
     } else {
       return lhs;
@@ -77,7 +79,7 @@ struct BinaryExpr {
   }
 
   constexpr auto get_right_most() const {
-    if constexpr (_impl::is_specialization<R, ^^BinaryExpr>) {
+    if constexpr (meta::is_specialization<R, ^^BinaryExpr>) {
       return rhs.get_right_most();
     } else {
       return rhs;
@@ -254,7 +256,7 @@ struct Placeholder {
     static constexpr auto placeholder_count =
         std::tuple_size_v<std::remove_cvref_t<decltype(args)>>;
     static_assert(Idx < placeholder_count,
-                  std::string("Placeholder $") + _impl::utos(Idx) + " has no associated value");
+                  std::string("Placeholder $") + util::utos(Idx) + " has no associated value");
     return get<Idx>(args);
   }
 
@@ -307,8 +309,8 @@ struct Lazy {
 
 template <typename T>
 concept is_expr_tree =
-    _impl::is_specialization<T, ^^BinaryExpr> || _impl::is_specialization<T, ^^Placeholder> ||
-    _impl::is_specialization<T, ^^Lazy>;
+    meta::is_specialization<T, ^^BinaryExpr> || meta::is_specialization<T, ^^Placeholder> ||
+    meta::is_specialization<T, ^^Lazy>;
 
 #define $make_op(op)                                                           \
   template <typename T>                                                        \
@@ -369,7 +371,7 @@ auto lazy(auto... args) {
 template <typename T>
 struct Expect : T {
   constexpr auto transform() {
-    if constexpr (_impl::is_specialization<T, ^^BinaryExpr>) {
+    if constexpr (meta::is_specialization<T, ^^BinaryExpr>) {
       return rsl::_expect_impl::Expect{T::transform()};
     } else {
       return *this;

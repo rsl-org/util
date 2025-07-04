@@ -10,7 +10,7 @@
 
 #include <rsl/_impl/member_cache.hpp>
 #include <rsl/_impl/index_of.hpp>
-#include "rsl/_impl/to_string.hpp"
+#include "rsl/util/to_string.hpp"
 
 namespace rsl {
 template <std::size_t, typename>
@@ -736,7 +736,7 @@ constexpr auto get_if(_variant_impl::variant_base<Storage>* variant_) noexcept
     -> variant_alternative_t<Idx, _variant_impl::variant_base<Storage>>* {
   constexpr static auto alt_count = _variant_impl::variant_base<Storage>::alternatives.count;
   static_assert(Idx < alt_count,
-                std::string("index must be in [0, ") + _impl::to_string(alt_count) + "]");
+                std::string("index must be in [0, ") + util::to_string(alt_count) + "]");
   static_assert(!std::is_void_v<variant_alternative_t<Idx, _variant_impl::variant_base<Storage>>>,
                 "alternative type must not be void");
 
