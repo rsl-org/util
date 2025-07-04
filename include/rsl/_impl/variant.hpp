@@ -1,10 +1,12 @@
 #pragma once
+#include <meta>
 #include <compare>
 #include <type_traits>
 #include <utility>
 #include <cstddef>
 #include <concepts>
-#include <meta>
+#include <ranges>
+#include <algorithm>
 
 #include <rsl/_impl/member_cache.hpp>
 #include <rsl/_impl/index_of.hpp>

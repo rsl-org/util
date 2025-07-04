@@ -33,7 +33,7 @@ consteval std::meta::info make_intseq(T count) {
 }  // namespace _intseq_impl
 
 template <typename T, T N>
-using make_integer_sequence = [:make_intseq(N):];
+using make_integer_sequence = [:_intseq_impl::make_intseq(N):];
 
 template <std::size_t N>
 using make_index_sequence = make_integer_sequence<std::size_t, N>;

@@ -41,7 +41,7 @@ public:
                 "Character type of basic_string_view must not be an array");
   static_assert(std::is_standard_layout_v<value_type>,
                 "Character type of basic_string_view must be standard-layout");
-  static_assert(std::is_trivial_v<value_type>,
+  static_assert(std::is_trivially_copyable_v<CharT> && std::is_trivially_default_constructible_v<CharT>,
                 "Character type of basic_string_view must be trivial");
   static_assert(std::same_as<CharT, typename traits_type::char_type>,
                 "traits_type::char_type must be the same type as CharT");
@@ -80,7 +80,7 @@ public:
       , _impl_size(other.size()) {}
 
   //? compat
-  constexpr explicit(false) operator basic_string_view<CharT, Traits>() const {
+  constexpr explicit(false) operator std::basic_string_view<CharT, Traits>() const {
     return {_impl_data, _impl_size};
   }
 
@@ -254,11 +254,7 @@ public:
   //? unlike std::define_static_string this returns an array, so it is usable for C++20 CTP fixed
   // strings
   constexpr explicit(false) operator std::meta::info() const {
-    std::vector args = {^^CharT};
-    for (auto c : *this) {
-      args.push_back(std::meta::reflect_constant(c));
-    }
-    return substitute(^^_impl::fixed_array, args);
+    return std::meta::reflect_constant_string(_impl_data);
   }
 
   const_pointer _impl_data;
@@ -281,6 +277,17 @@ constexpr bool operator==(basic_string_view<CharT, Traits> lhs,
   }
   return lhs.compare(rhs) == 0;
 }
+
+//? compat
+template <typename CharT, typename Traits>
+constexpr bool operator==(basic_string_view<CharT, Traits> lhs,
+                          std::type_identity_t<std::basic_string_view<CharT, Traits>> rhs) noexcept {
+  if (lhs.size() != rhs.size()) {
+    return false;
+  }
+  return lhs.compare(rhs) == 0;
+}
+
 template <typename CharT, typename Traits>
 constexpr auto operator<=>(basic_string_view<CharT, Traits> lhs,
                            std::type_identity_t<basic_string_view<CharT, Traits>> rhs) noexcept {
@@ -290,6 +297,18 @@ constexpr auto operator<=>(basic_string_view<CharT, Traits> lhs,
     return static_cast<std::weak_ordering>(lhs.compare(rhs) <=> 0);
   }
 }
+
+//? compat
+template <typename CharT, typename Traits>
+constexpr auto operator<=>(basic_string_view<CharT, Traits> lhs,
+                           std::type_identity_t<std::basic_string_view<CharT, Traits>> rhs) noexcept {
+  if constexpr (requires { typename Traits::comparison_category; }) {
+    return static_cast<typename Traits::comparison_category>(lhs.compare(rhs) <=> 0);
+  } else {
+    return static_cast<std::weak_ordering>(lhs.compare(rhs) <=> 0);
+  }
+}
+
 
 // basic_string_view typedef-names
 using string_view    = basic_string_view<char>;
@@ -301,6 +320,8 @@ using wstring_view   = basic_string_view<wchar_t>;
 inline namespace literals {
 inline namespace string_view_literals {
 // [string.view.literals], suffix for basic_string_view literals
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuser-defined-literals"
 constexpr string_view operator""sv(const char* str, size_t len) noexcept {
   return {str, len};
 }
@@ -316,6 +337,7 @@ constexpr u32string_view operator""sv(const char32_t* str, size_t len) noexcept 
 constexpr wstring_view operator""sv(const wchar_t* str, size_t len) noexcept {
   return {str, len};
 }
+#pragma clang diagnostic pop
 }  // namespace string_view_literals
 }  // namespace literals
 }  // namespace rsl

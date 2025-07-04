@@ -20,7 +20,7 @@ class RslUtilRecipe(ConanFile):
         "coverage": [True, False],
         "examples": [True, False]
     }
-    default_options = {"coverage": False, "examples": True}
+    default_options = {"coverage": False, "examples": False}
     generators = "CMakeToolchain", "CMakeDeps"
 
     exports_sources = "CMakeLists.txt", "include/*"
@@ -36,10 +36,10 @@ class RslUtilRecipe(ConanFile):
             cmake = CMake(self)
             cmake.configure(
                 variables={
+                    "BUILD_TESTING": not self.conf.get("tools.build:skip_test", default=False),
                     "ENABLE_COVERAGE": self.options.coverage,
-                    "ENABLE_EXAMPLES": self.options.examples
-                }
-            )
+                    "BUILD_EXAMPLES": self.options.examples
+                })
             cmake.build()
 
     def package(self):

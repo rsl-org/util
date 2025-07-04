@@ -36,7 +36,7 @@ inline constexpr _tuple_impl::ignore_type ignore;
 
 // [tuple.helper], tuple helper classes
 template <class T>
-struct tuple_size;  // not defined
+struct tuple_size;
 
 template <class T>
 struct tuple_size<const T> : tuple_size<T> {};
@@ -48,7 +48,7 @@ template <class T>
 constexpr std::size_t tuple_size_v = tuple_size<T>::value;
 
 template <std::size_t I, class T>
-struct tuple_element;  // not defined
+struct tuple_element;
 
 template <std::size_t I, class... Types>
 struct tuple_element<I, tuple<Types...> const> {

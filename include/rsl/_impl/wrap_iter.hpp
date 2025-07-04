@@ -93,13 +93,13 @@ private:
 };
 
 template <typename It>
-_LIBCPP_CONSTEXPR bool operator==(const WrappedIterator<It>& rhs,
+constexpr bool operator==(const WrappedIterator<It>& rhs,
                                   const WrappedIterator<It>& lhs) noexcept {
   return rhs.base() == lhs.base();
 }
 
 template <typename It1, typename It2>
-_LIBCPP_CONSTEXPR bool operator==(const WrappedIterator<It1>& rhs,
+constexpr bool operator==(const WrappedIterator<It1>& rhs,
                                   const WrappedIterator<It2>& lhs) noexcept {
   return rhs.base() == lhs.base();
 }
@@ -146,8 +146,9 @@ constexpr WrappedIterator<It> operator+(typename WrappedIterator<It>::difference
   return it;
 }
 }  // namespace rsl::_impl
+
 template <typename It>
-struct _LIBCPP_TEMPLATE_VIS std::pointer_traits<rsl::_impl::WrappedIterator<It> > {
+struct std::pointer_traits<rsl::_impl::WrappedIterator<It> > {
   using pointer         = rsl::_impl::WrappedIterator<It>;
   using element_type    = typename std::pointer_traits<It>::element_type;
   using difference_type = typename std::pointer_traits<It>::difference_type;

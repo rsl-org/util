@@ -5,7 +5,7 @@
 #include <format>
 #include <string>
 
-#include <rsl/seq>
+#include <rsl/intseq>
 
 #include <rsl/_impl/concepts.hpp>
 #include <rsl/_impl/operators.hpp>
