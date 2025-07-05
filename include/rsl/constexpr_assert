@@ -1,0 +1,62 @@
+#include <iterator>
+#include <meta>
+#include <print>
+#include <ranges>
+#include <source_location>
+#include <string>
+#include <string_view>
+
+#include <rsl/util/to_string.hpp>
+
+namespace rsl {
+namespace _error_impl {
+template <char const* message>
+consteval void error() {
+  static_assert(false, std::string_view{message});
+}
+}  // namespace _error_impl
+
+consteval void compile_error(std::string_view message,
+                             std::source_location sloc = std::source_location::current()) {
+  auto diagnostic = std::string{'\n'} + sloc.file_name() + ":" + util::to_string(sloc.line()) +
+                    ":" + util::to_string(sloc.column()) + ": error: " + message;
+  extract<void (*)()>(
+      substitute(^^_error_impl::error, {std::meta::reflect_constant_string(diagnostic)}))();
+}
+
+namespace _assert_impl {
+constexpr std::size_t suffix_size(std::string_view str) {
+  int parens_count = 0;
+  for (auto it = str.rbegin(); it != str.rend(); ++it) {
+    if (auto c = *it; c == ')' || c == ']' || c == '}') {
+      parens_count++;
+    } else if (c == '(' || c == '[' || c == '{') {
+      parens_count--;
+    } else if (c == ',' && parens_count == 0) {
+      return std::distance(str.rbegin(), it) + 1;
+    }
+  }
+  return 0;
+}
+
+consteval void constexpr_assert(std::string_view assertion,
+                                bool value,
+                                std::string_view msg      = "",
+                                std::source_location sloc = std::source_location::current()) {
+  if (value) {
+    return;
+  }
+
+  assertion.remove_suffix(suffix_size(assertion));
+  auto message = std::string("assertion ") + assertion + " failed";
+
+  if (!msg.empty()) {
+    message += ": ";
+    message += msg;
+  }
+  rsl::compile_error(message, sloc);
+}
+}  // namespace _assert_impl
+}  // namespace rsl
+
+#define constexpr_assert(...) ::rsl::_assert_impl::constexpr_assert(#__VA_ARGS__, __VA_ARGS__)

@@ -13,8 +13,7 @@
 #include <rsl/string_constant>
 #include <rsl/string_view>
 #include <rsl/span>
-
-#include "_impl/fail.hpp"
+#include <rsl/constexpr_assert>
 
 namespace rsl {
 namespace _trie_impl {
@@ -166,13 +165,8 @@ struct Trie {
   int (*find)(std::string_view str)     = nullptr;
 
   explicit consteval Trie(std::vector<rsl::string_view> words) {
-    // if (words.empty()) {
-    //   rsl::_impl::fail("An empty word list is not allowed.");
-    // }
-
-    // if (_trie_impl::has_duplicates(words)) {
-    //   rsl::_impl::fail("Duplicates in the word list are not allowed.");
-    // }
+    constexpr_assert(!words.empty(), "An empty word list is not allowed.");
+    constexpr_assert(!_trie_impl::has_duplicates(words), "Duplicates in the word list are not allowed.");
 
     (this->*extract<void (Trie::*)()>(
                 substitute(^^assign_handlers, {_trie_impl::ParsedState::make(words)})))();
