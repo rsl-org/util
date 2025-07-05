@@ -59,7 +59,7 @@ constexpr auto make_expr(R rhs_, L lhs_) {
 }
 
 template <typename T>
-concept is_binary_expr = meta::is_specialization<T, ^^BinaryExpr>;
+concept is_binary_expr = meta::specializes<T, ^^BinaryExpr>;
 
 template <typename T>
 concept is_binary_comparison = is_binary_expr<T> && is_comparison(T::op);
@@ -71,7 +71,7 @@ struct BinaryExpr {
   L lhs;
 
   constexpr auto get_left_most() const {
-    if constexpr (meta::is_specialization<L, ^^BinaryExpr>) {
+    if constexpr (meta::specializes<L, ^^BinaryExpr>) {
       return lhs.get_left_most();
     } else {
       return lhs;
@@ -79,7 +79,7 @@ struct BinaryExpr {
   }
 
   constexpr auto get_right_most() const {
-    if constexpr (meta::is_specialization<R, ^^BinaryExpr>) {
+    if constexpr (meta::specializes<R, ^^BinaryExpr>) {
       return rhs.get_right_most();
     } else {
       return rhs;
@@ -309,8 +309,8 @@ struct Lazy {
 
 template <typename T>
 concept is_expr_tree =
-    meta::is_specialization<T, ^^BinaryExpr> || meta::is_specialization<T, ^^Placeholder> ||
-    meta::is_specialization<T, ^^Lazy>;
+    meta::specializes<T, ^^BinaryExpr> || meta::specializes<T, ^^Placeholder> ||
+    meta::specializes<T, ^^Lazy>;
 
 #define $make_op(op)                                                           \
   template <typename T>                                                        \
@@ -371,7 +371,7 @@ auto lazy(auto... args) {
 template <typename T>
 struct Expect : T {
   constexpr auto transform() {
-    if constexpr (meta::is_specialization<T, ^^BinaryExpr>) {
+    if constexpr (meta::specializes<T, ^^BinaryExpr>) {
       return rsl::_expect_impl::Expect{T::transform()};
     } else {
       return *this;
