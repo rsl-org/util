@@ -111,4 +111,4 @@ constexpr std::meta::operators to_operator(std::string_view text) {
   }
   return {};
 }
-}  // namespace erl::util
+}  // namespace rsl::util
