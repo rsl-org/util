@@ -1,9 +1,9 @@
 #pragma once
 #include <meta>
 #include <string>
-#include "hash.hpp"
+#include <rsl/_impl/hash.hpp>
 
-namespace rsl::_impl {
+namespace rsl::util {
 constexpr std::string to_string(std::meta::operators op) {
   switch (op) {
     using enum std::meta::operators;
@@ -57,7 +57,7 @@ constexpr std::string to_string(std::meta::operators op) {
 
 constexpr std::meta::operators to_operator(std::string_view text) {
   constexpr static auto hash = [](std::string_view str) constexpr {
-    auto hasher = FNV1a{};
+    auto hasher = _impl::FNV1a{};
     hasher(str);
     return hasher.finalize();
   };

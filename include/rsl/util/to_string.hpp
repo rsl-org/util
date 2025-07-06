@@ -38,4 +38,4 @@ constexpr std::string to_string(std::integral auto value) {
   }
   return utos(value);
 }
-}  // namespace rsl::_impl
+}  // namespace rsl::util

@@ -5,7 +5,10 @@
 #include <source_location>
 #include <string>
 #include <string_view>
+#include <cstdlib>
+#include <cstdio>
 
+#include <rsl/expect>
 #include <rsl/util/to_string.hpp>
 
 namespace rsl {
@@ -14,12 +17,16 @@ template <char const* message>
 consteval void error() {
   static_assert(false, std::string_view{message});
 }
+
+constexpr std::string format_sloc(std::source_location sloc) {
+  return std::string(sloc.file_name()) + ":" + util::to_string(sloc.line()) + ":" +
+         util::to_string(sloc.column());
+}
 }  // namespace _error_impl
 
 consteval void compile_error(std::string_view message,
                              std::source_location sloc = std::source_location::current()) {
-  auto diagnostic = std::string{'\n'} + sloc.file_name() + ":" + util::to_string(sloc.line()) +
-                    ":" + util::to_string(sloc.column()) + ": error: " + message;
+  auto diagnostic = '\n' + _error_impl::format_sloc(sloc) + ": error: " + message;
   extract<void (*)()>(
       substitute(^^_error_impl::error, {std::meta::reflect_constant_string(diagnostic)}))();
 }
@@ -39,11 +46,12 @@ constexpr std::size_t suffix_size(std::string_view str) {
   return 0;
 }
 
-consteval void constexpr_assert(std::string_view assertion,
-                                bool value,
+constexpr void constexpr_assert(std::string_view assertion,
+                                auto value,
                                 std::string_view msg      = "",
                                 std::source_location sloc = std::source_location::current()) {
-  if (value) {
+  auto condition = expect(value);
+  if (condition(false)) {
     return;
   }
 
@@ -54,9 +62,23 @@ consteval void constexpr_assert(std::string_view assertion,
     message += ": ";
     message += msg;
   }
-  rsl::compile_error(message, sloc);
+
+  auto header = _error_impl::format_sloc(sloc) + ": error: ";
+  if consteval {
+    auto msg = message + '\n';
+    msg += header + "expression evaluated to: " + condition.to_string("") + " => false";
+    rsl::compile_error(msg, sloc);
+  } else {
+    auto diagnostic = header + message + '\n';
+    fputs(diagnostic.c_str(), stderr);
+
+    auto evaluated = header + "expression evaluated to: " + condition.to_string("") + " => false\n";
+    fputs(evaluated.c_str(), stderr);
+    std::abort();
+  }
 }
 }  // namespace _assert_impl
 }  // namespace rsl
 
-#define constexpr_assert(...) ::rsl::_assert_impl::constexpr_assert(#__VA_ARGS__, __VA_ARGS__)
+#define constexpr_assert(...) \
+  ::rsl::_assert_impl::constexpr_assert(#__VA_ARGS__, ::rsl::_expect_impl::decompose ->* __VA_ARGS__)
