@@ -47,11 +47,9 @@ class RslUtilRecipe(ConanFile):
         copy(self, "include/rsl/*", self.source_folder, self.package_folder)
 
     def package_info(self):
+        self.cpp_info.set_property("cmake_file_name", "rsl-util")
         self.cpp_info.components["util"].set_property("cmake_target_name", "rsl::util")
         self.cpp_info.components["util"].includedirs = ["include"]
         self.cpp_info.components["util"].bindirs = []
         self.cpp_info.components["util"].libdirs = []
-        self.cpp_info.components["util"].libs = []
-
-    def package_id(self):
-        self.info.clear()
+        self.cpp_info.components["util"].libs = ["rsl_util"]

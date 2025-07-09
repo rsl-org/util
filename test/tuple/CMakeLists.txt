@@ -1,4 +1,4 @@
-target_sources(rsl_test PRIVATE 
+target_sources(rsl_util_test PRIVATE 
     structured_bindings.cpp
     empty.cpp
 )
