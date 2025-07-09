@@ -85,8 +85,4 @@ concept nonstatic_member_function = is_nonstatic_member_function(R);
 
 template <std::meta::info R, std::meta::info T>
 concept annotated_with = has_annotation(R, T);
-
-consteval bool convertible_to(std::meta::info derived, std::meta::info base) {
-  return extract<bool>(substitute(^^std::convertible_to, {derived, base}));
-}
 }  // namespace rsl::meta
