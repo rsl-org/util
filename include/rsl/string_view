@@ -250,13 +250,6 @@ public:
                                                      size_type n) const;
   [[nodiscard]] constexpr size_type find_last_not_of(CharT const* s, size_type pos = npos) const;
 
-  //! non-standard extension: enable making this static by casting to std::meta::info
-  //? unlike std::define_static_string this returns an array, so it is usable for C++20 CTP fixed
-  // strings
-  constexpr explicit(false) operator std::meta::info() const {
-    return std::meta::reflect_constant_string(_impl_data);
-  }
-
   const_pointer _impl_data;
   size_type _impl_size;
 };

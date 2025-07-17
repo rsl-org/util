@@ -156,23 +156,6 @@ public:
   constexpr typename std::remove_cvref_t<T>::const_reverse_iterator crend(this T&& self) noexcept {
     return std::forward<T>(self).rend();
   }
-
-  //! non-standard extension: allow splicing constexpr spans as arrays
-  template <typename T>
-  constexpr explicit(false) operator std::meta::info(this T&& self) noexcept {
-    if consteval {
-      std::vector elements = {^^typename std::remove_cvref_t<T>::element_type};
-      for (auto const& element : self) {
-        if constexpr (std::is_convertible_v<std::remove_cvref_t<decltype(element)>, std::meta::info>) {
-          elements.push_back(static_cast<std::meta::info>(element));
-        } else {
-          elements.push_back(std::meta::reflect_constant(element));
-        }
-      }
-      return substitute(^^_impl::fixed_array, elements);
-    }
-    std::unreachable();
-  }
 };
 }  // namespace _span_impl
 
