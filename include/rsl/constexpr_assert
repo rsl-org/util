@@ -78,8 +78,18 @@ constexpr void constexpr_assert(std::string_view assertion,
     std::abort();
   }
 }
+consteval void consteval_assert(std::string_view assertion,
+                                auto value,
+                                std::string_view msg      = "",
+                                std::source_location sloc = std::source_location::current()) {
+  constexpr_assert(assertion, value, msg, sloc);
+}
 }  // namespace _assert_impl
 }  // namespace rsl
 
+#define consteval_assert(...) \
+  ::rsl::_assert_impl::consteval_assert(#__VA_ARGS__, ::rsl::_expect_impl::decompose->*__VA_ARGS__)
+  
 #define constexpr_assert(...) \
-  ::rsl::_assert_impl::constexpr_assert(#__VA_ARGS__, ::rsl::_expect_impl::decompose ->* __VA_ARGS__)
+  ::rsl::_assert_impl::constexpr_assert(#__VA_ARGS__, ::rsl::_expect_impl::decompose->*__VA_ARGS__)
+
