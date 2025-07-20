@@ -2,6 +2,7 @@
 #include <string>
 #include <concepts>
 #include <cstdint>
+#include <meta>
 
 namespace rsl::util {
 
@@ -37,5 +38,10 @@ constexpr std::string to_string(std::integral auto value) {
     }
   }
   return utos(value);
+}
+
+consteval std::string to_string(std::meta::info value) {
+  // TODO this is incorrect for reflections of values
+  return std::string("^^") + display_string_of(value);
 }
 }  // namespace rsl::util
