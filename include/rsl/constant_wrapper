@@ -22,14 +22,14 @@ namespace _impl {
 template <typename T>
 struct cw_fixed_value {
   using type = T;
-  constexpr cw_fixed_value(type v) noexcept : data(v) {}
+  constexpr explicit(false) cw_fixed_value(type v) noexcept : data(v) {}
   T data;
 };
 
 template <typename T, size_t Extent>
 struct cw_fixed_value<T[Extent]> {
   using type = T[Extent];
-  constexpr cw_fixed_value(T (&arr)[Extent]) noexcept
+  constexpr explicit(false) cw_fixed_value(T (&arr)[Extent]) noexcept
       : cw_fixed_value(arr, std::make_index_sequence<Extent>()) {}
   T data[Extent];
 
