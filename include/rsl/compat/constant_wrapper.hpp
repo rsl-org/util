@@ -83,10 +83,10 @@ namespace _impl {
       friend constexpr auto operator^(L, R) noexcept -> constant_wrapper<(L::value ^ R::value)> { return {}; }
 
     template<constexpr_param L, constexpr_param R>
-      requires (!is_constructible_v<bool, decltype(L::value)> || !is_constructible_v<bool, decltype(R::value)>)
+      requires (!std::is_constructible_v<bool, decltype(L::value)> || !std::is_constructible_v<bool, decltype(R::value)>)
         friend constexpr auto operator&&(L, R) noexcept -> constant_wrapper<(L::value && R::value)> { return {}; }
     template<constexpr_param L, constexpr_param R>
-      requires (!is_constructible_v<bool, decltype(L::value)> || !is_constructible_v<bool, decltype(R::value)>)
+      requires (!std::is_constructible_v<bool, decltype(L::value)> || !std::is_constructible_v<bool, decltype(R::value)>)
         friend constexpr auto operator||(L, R) noexcept -> constant_wrapper<(L::value || R::value)> { return {}; }
 
     // comparisons
