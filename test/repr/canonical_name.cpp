@@ -47,6 +47,9 @@ TEST(CanonicalName, Basic) {
   ASSERT_STREQ(rsl::canonical_name_of<int const*>, "int const*");
   ASSERT_STREQ(rsl::canonical_name_of<int const* const>, "int const* const");
   ASSERT_STREQ(rsl::canonical_name_of<int* const>, "int* const");
+
+  ASSERT_EQ(rsl::canonical_name(^^int), "int");
+  ASSERT_EQ(rsl::canonical_name(^^int const* const), "int const* const");
 }
 
 TEST(CanonicalName, StdAliases) {
@@ -130,17 +133,27 @@ TEST(CanonicalName, Specialization) {
 
 TEST(QualifiedName, Basic) {
   ASSERT_STREQ(rsl::qualified_name_of<int>, "int");
+  ASSERT_STREQ(rsl::fully_qualified_name_of<int>, "int");
+  ASSERT_EQ(rsl::qualified_name(^^int), "int");
+  ASSERT_EQ(rsl::fully_qualified_name(^^int), "int");
 }
 
 TEST(QualifiedName, StdAliases) {
   ASSERT_STREQ(rsl::qualified_name_of<std::string>, "std::string");
+  ASSERT_STREQ(rsl::fully_qualified_name_of<std::string>, "::std::string");
+  ASSERT_EQ(rsl::qualified_name(^^std::string), "std::string");
+  ASSERT_EQ(rsl::fully_qualified_name(^^std::string), "::std::string");
 }
 
 TEST(QualifiedName, TemplateDefaults) {
   ASSERT_STREQ(rsl::qualified_name_of<std::vector<std::string>>, "std::vector<std::string>");
+  ASSERT_STREQ(rsl::fully_qualified_name_of<std::vector<std::string>>, "::std::vector<::std::string>");
   ASSERT_STREQ(
       (rsl::qualified_name_of<std::unordered_map<std::string_view, std::vector<std::string>>>),
       "std::unordered_map<std::string_view, std::vector<std::string>>");
+  ASSERT_STREQ(
+      (rsl::fully_qualified_name_of<std::unordered_map<std::string_view, std::vector<std::string>>>),
+      "::std::unordered_map<::std::string_view, ::std::vector<::std::string>>");
 }
 
 TEST(QualifiedName, Annotation) {

@@ -90,15 +90,6 @@ consteval std::string get_canonical_recurse() {
 }
 }  // namespace _impl
 
-consteval std::string canonical_name(std::meta::info R) {
-  if (is_type(R)) {
-    return extract<std::string (*)()>(substitute(^^_impl::get_canonical_recurse, {R}))();
-  } else {
-    // TODO collapse t.operator() to t()?
-    return std::string(display_string_of(R));
-  }
-}
-
 template <typename T>
 constexpr inline auto canonical_name_of<T const> =
     define_static_string(std::string(canonical_name_of<T>) + " const");
@@ -175,11 +166,28 @@ constexpr inline auto qualified_name_of =
 
 template <typename T>
 constexpr inline auto fully_qualified_name_of = define_static_string(
-    "::" + _impl::namespace_prefix<std::remove_cvref_t<T>>() + _impl::get_canonical_name<T>(^^_impl::get_qualified_recurse));
+    "::" + _impl::namespace_prefix<std::remove_cvref_t<T>>() + _impl::get_canonical_name<T>(^^_impl::get_fully_qualified_recurse));
 
 template <typename T>
   requires std::is_fundamental_v<T>
 constexpr inline auto fully_qualified_name_of<T> = canonical_name_of<T>;
+
+consteval std::string_view canonical_name(std::meta::info R) {
+  if (is_type(R)) {
+    return define_static_string(extract<std::string (*)()>(substitute(^^_impl::get_canonical_recurse, {R}))());
+  } else {
+    // TODO collapse t.operator() to t()?
+    return display_string_of(R);
+  }
+}
+
+consteval std::string_view qualified_name(std::meta::info R) {
+  return define_static_string(extract<std::string(*)()>(substitute(^^_impl::get_qualified_recurse, {R}))());
+}
+
+consteval std::string_view fully_qualified_name(std::meta::info R) {
+  return define_static_string(extract<std::string(*)()>(substitute(^^_impl::get_fully_qualified_recurse, {R}))());
+}
 
 namespace _impl {
   template <typename T>
