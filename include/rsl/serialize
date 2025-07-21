@@ -1,0 +1,26 @@
+#pragma once
+#include <ranges>
+#include "serializer/machinery.hpp"
+#include "serializer/util.hpp"
+
+namespace rsl {
+template <typename T, typename V>
+void serialize(T&& serializer, V&& data) {
+  serializer::Meta<std::remove_cvref_t<V>>{}.visit(std::forward<T>(serializer),
+                                                   std::forward<V>(data));
+}
+
+template <serializer::complete_type V, typename T, std::ranges::forward_range R>
+V deserialize(T&& deserializer, R&& data) {}
+
+template <typename T, serializer::complete_type V>
+void serialize_type(T&& serializer) {
+  return serializer.template operator()<^^V>();
+}
+
+template <typename T, std::ranges::forward_range R>
+consteval std::meta::info deserialize_type(T&& deserializer, R&& data) {
+  return deserializer(data);
+}
+
+}  // namespace rsl
