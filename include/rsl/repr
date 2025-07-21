@@ -3,6 +3,8 @@
 #include <string>
 
 #include <meta>
+
+#include <rsl/constant_wrapper>
 #include <rsl/serializer/repr/serializer.hpp>
 #include <rsl/serializer/canonical_name.hpp>
 
@@ -28,7 +30,7 @@ constexpr std::string repr(T&& value, repr_tag={}){
 }
 
 template <auto V>
-constexpr std::string repr(Constant<V>, repr_tag={}){
+constexpr std::string repr(rsl::constant_wrapper<V>, repr_tag={}){
   return rsl::repr(V);
 }
 
