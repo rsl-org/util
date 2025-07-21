@@ -3,7 +3,6 @@
 #include <common/assertions.h>
 
 #include <rsl/variant>
-#include <rsl/tagged_variant>
 
 enum class Foo {
   foo [[=rsl::type<int>]],

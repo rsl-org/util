@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <rsl/tagged_variant>
+#include <rsl/variant>
 #include <utility>
 
 #include "common/assertions.h"
