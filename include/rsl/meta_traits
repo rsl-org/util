@@ -67,6 +67,11 @@ consteval std::meta::info get_annotation(std::meta::info item, std::meta::info t
   return get_annotations(item, type)[0];
 }
 
+consteval bool has_parent(std::meta::info R) {
+  // HACK remove this once `std::meta::has_parent` is supported in libc++
+  return R != ^^::;
+}
+
 
 template <typename T, std::meta::info Template>
 concept specializes = is_specialization(^^T, Template);

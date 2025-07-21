@@ -4,8 +4,15 @@
 
 #include <meta>
 #include <rsl/serializer/repr/serializer.hpp>
+#include <rsl/serializer/canonical_name.hpp>
 
 namespace rsl {
+using _serialize_impl::canonical_name;
+using _serialize_impl::canonical_name_of;
+
+using _serialize_impl::qualified_name_of;
+using _serialize_impl::fully_qualified_name_of;
+
 template <auto V>
 struct Constant{};
 
