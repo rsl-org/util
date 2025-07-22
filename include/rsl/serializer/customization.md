@@ -7,11 +7,6 @@ struct Zoinks{
 };
 
 template <>
-constexpr inline auto rsl::preferred_name<Zoinks> {
-  constexpr static auto value = "Foo";
-};
-
-template <>
 struct rsl::preferred_name<Zoinks> {
   constexpr inline auto value = "Foo";
 }
