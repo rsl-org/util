@@ -27,7 +27,7 @@ using repr_options = serializer::_repr_impl::Options;
 template <typename T>
 constexpr std::string repr(T&& value, repr_options opts = {}) {
   auto visitor = rsl::serializer::_repr_impl::Serializer{opts};
-  visitor(serializer::Meta<std::remove_cvref_t<T>>(), std::forward<T>(value));
+  rsl::serialize(visitor, std::forward<T>(value));
   return visitor.finalize();
 }
 

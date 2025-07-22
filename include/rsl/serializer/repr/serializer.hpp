@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <type_traits>
+#include <charconv>
 
 #include <rsl/serialize>
 #include "../name.hpp"
@@ -15,62 +16,74 @@ struct Options {
   _serialize_impl::NameMode names = _serialize_impl::NameMode::unqualified;
   bool indent                     = false;
 };
-
 class Serializer {
-  std::ostringstream out;
+  std::string out;
   Options opts;
   bool separate     = false;
   std::size_t level = 0;
 
-  void print_indent() {
+  constexpr void print_indent() {
     if (opts.indent) {
-      out << "\n";
-      out << std::string(2 * level, ' ');
+      out += '\n';
+      out.append(2 * level, ' ');
     }
   }
 
-  void print_separator() {
+  constexpr void print_separator() {
     if (separate) {
-      out << ", ";
+      out += ", ";
     } else {
       separate = true;
     }
     print_indent();
   }
 
-  void increase_nesting() {
+  constexpr void increase_nesting() {
     separate = false;
-    out << '{';
+    out += '{';
     ++level;
   }
 
-  void decrease_nesting() {
+  constexpr void decrease_nesting() {
     --level;
     print_indent();
-    out << '}';
+    out += '}';
     separate = true;
   }
 
   template <typename T>
-  void print_type() {
-        if (opts.names == _serialize_impl::NameMode::qualified) {
-      out << _serialize_impl::qualified_name<std::remove_cvref_t<T>>;
-    } else if (opts.names == _serialize_impl::NameMode::fully_qualified) {
-      out << _serialize_impl::fully_qualified_name<std::remove_cvref_t<T>>;
-    } else {
-      out << _serialize_impl::unqualified_name<std::remove_cvref_t<T>>;
+  constexpr void print_type() {
+    using CleanT = std::remove_cvref_t<T>;
+    switch (opts.names) {
+      case _serialize_impl::NameMode::qualified:
+        out += _serialize_impl::qualified_name<CleanT>;
+        break;
+      case _serialize_impl::NameMode::fully_qualified:
+        out += _serialize_impl::fully_qualified_name<CleanT>;
+        break;
+      case _serialize_impl::NameMode::unqualified:
+        out += _serialize_impl::unqualified_name<CleanT>;
+        break;
     }
   }
 
 public:
-  explicit Serializer(Options opts) : opts(opts) {}
+  constexpr explicit Serializer(Options opts = {}) : opts(opts) {}
 
-  std::string finalize() const { return out.str(); }
+  constexpr std::string finalize() const { return out; }
+
+  template <typename T>
+  constexpr void operator()(Unsupported, T&& value) {
+    print_separator();
+    print_type<T>();
+    increase_nesting();
+    out += "/*...*/";
+    decrease_nesting();
+  }
 
   template <has_members R, typename T>
-  void operator()(R meta, T&& value) {
+  constexpr void operator()(R meta, T&& value) {
     print_separator();
-
     print_type<std::remove_cvref_t<T>>();
     increase_nesting();
     meta.descend(*this, std::forward<T>(value));
@@ -78,7 +91,7 @@ public:
   }
 
   template <is_iterable R, typename T>
-  void operator()(R meta, T&& value) {
+  constexpr void operator()(R meta, T&& value) {
     print_separator();
     print_type<std::remove_cvref_t<T>>();
     increase_nesting();
@@ -87,46 +100,71 @@ public:
   }
 
   template <typename R>
-  void operator()(R, std::convertible_to<std::string_view> auto const& value) {
+  constexpr void operator()(R, std::convertible_to<std::string_view> auto const& value) {
     print_separator();
-    out << '"' << value << '"';
+    out += '"';
+    out += std::string(value);  // allowed in C++26 constexpr
+    out += '"';
   }
 
-  void operator()(auto, char value) {
+  constexpr void operator()(auto, char value) {
     print_separator();
-    out << '\'' << value << '\'';
+    out += '\'';
+    out += value;
+    out += '\'';
   }
 
-  void operator()(auto, bool value) {
+  constexpr void operator()(auto, bool value) {
     print_separator();
-    out << (value ? "true" : "false");
+    out += value ? "true" : "false";
+  }
+
+  template <typename T, typename U>
+  constexpr void operator()(auto meta, std::pair<T, U> const& pair) {
+    print_separator();
+    increase_nesting();
+    meta.descend(*this, pair);
+    decrease_nesting();
   }
 
   template <typename R, typename T>
-    requires(std::is_floating_point_v<std::remove_cvref_t<T>>)
-  void operator()(R, T value) {
+    requires std::is_floating_point_v<std::remove_cvref_t<T>>
+  constexpr void operator()(R, T value) {
     print_separator();
-    out << value;
+    std::array<char, 64> buffer{};
+
+    auto [ptr, ec] = std::to_chars(buffer.data(),
+                                   buffer.data() + buffer.size(),
+                                   value,
+                                   std::chars_format::general);
+    if (ec != std::errc{}) {
+      out += "/* error */";
+      return;
+    }
+
+    std::string result(buffer.data(), ptr - buffer.data());
+
     if constexpr (std::same_as<T, float>) {
-      out << "F";
+      result += 'F';
     } else if constexpr (std::same_as<T, long double>) {
-      out << "L";
+      result += 'L';
     }
+    out += result;
   }
 
   template <typename R, typename T>
-    requires(std::is_integral_v<std::remove_cvref_t<T>>)
-  void operator()(R, T value) {
+    requires std::is_integral_v<std::remove_cvref_t<T>>
+  constexpr void operator()(R, T value) {
     print_separator();
-    out << value;
+    out += std::to_string(value);
     if constexpr (std::is_unsigned_v<T>) {
-      out << "U";
+      out += 'U';
     }
-    using signed_t = std::make_signed_t<T>;
-    if constexpr (std::same_as<signed_t, long>) {
-      out << "L";
-    } else if constexpr (std::same_as<signed_t, long long>) {
-      out << "LL";
+    using Signed = std::make_signed_t<T>;
+    if constexpr (std::same_as<Signed, long>) {
+      out += 'L';
+    } else if constexpr (std::same_as<Signed, long long>) {
+      out += "LL";
     }
   }
 };

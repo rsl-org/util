@@ -22,11 +22,19 @@ concept is_iterable = is_meta<T> && T::iterable;
 template <typename T>
 concept is_optional = is_meta<T> && T::is_optional;
 
-template <typename T>
-struct Meta;
+struct Unsupported {};
 
 template <typename T>
-  requires(std::is_scalar_v<T>)
+struct Meta : Unsupported {
+  static constexpr std::meta::info info = ^^T;
+
+  template <typename U, typename F>
+    requires(std::same_as<std::remove_cvref_t<U>, T>)
+  void descend(F&& visitor, U&& value) {}
+};
+
+template <typename T>
+  requires(std::is_scalar_v<T> && !std::is_pointer_v<T>)
 struct Meta<T> {
   static constexpr std::meta::info info = ^^T;
 
@@ -53,7 +61,7 @@ struct Meta<T> {
   void descend(F&& visitor, U&& value) {
     template for (constexpr auto Idx : std::views::iota(0ZU, members.size())) {
       constexpr auto M = members[Idx];
-      if constexpr (!meta::has_annotation(M, ^^annotations::Skip)){
+      if constexpr (!meta::has_annotation(M, ^^annotations::Skip)) {
         visitor(Member<Idx, M, typename[:type_of(M):]>{}, value.[:M:]);
       }
     }
@@ -78,8 +86,21 @@ struct Meta<T> {
     requires(std::same_as<std::remove_cvref_t<U>, T>)
   void descend(F&& visitor, U&& value) {
     for (auto&& item : value) {
-      Meta<std::remove_cvref_t<decltype(item)>>{}.visit(visitor, item);
+      std::invoke(visitor, Meta<std::remove_cvref_t<decltype(item)>>{}, item);
     }
+  }
+};
+
+template <typename First, typename Second>
+struct Meta<std::pair<First, Second>> {
+  using type                            = std::pair<First, Second>;
+  constexpr static std::meta::info info = dealias(^^type);
+
+  template <typename S, typename F, typename U>
+    requires(std::same_as<std::remove_cvref_t<U>, type>)
+  void descend(this S&& self, F&& visitor, U&& value) {
+    std::invoke(std::forward<F>(visitor), std::forward<S>(self), value.first);
+    std::invoke(std::forward<F>(visitor), std::forward<S>(self), value.second);
   }
 };
 
@@ -99,7 +120,7 @@ struct Meta<std::optional<T>> {
   }
 };
 
-template <std::convertible_to<std::string> T>
+template <std::convertible_to<std::string_view> T>
 struct Meta<T> {
   using type                            = T;
   constexpr static std::meta::info info = ^^T;
