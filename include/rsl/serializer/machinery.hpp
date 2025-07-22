@@ -31,12 +31,6 @@ template <typename T>
 struct Meta<T> {
   static constexpr std::meta::info info = ^^T;
 
-  template <typename S, typename F, typename U>
-    requires(std::same_as<std::remove_cvref_t<U>, T>)
-  void visit(this S&& self, F&& visitor, U&& value) {
-    std::invoke(std::forward<F>(visitor), std::forward<S>(self), std::forward<U>(value));
-  }
-
   template <typename U, typename F>
     requires(std::same_as<std::remove_cvref_t<U>, T>)
   void descend(F&& visitor, U&& value) {}
@@ -55,19 +49,13 @@ struct Meta<T> {
   static constexpr auto members =
       define_static_array(nonstatic_data_members_of(info, std::meta::access_context::current()));
 
-  template <typename S, typename F, typename U>
-    requires(std::same_as<std::remove_cvref_t<U>, T>)
-  void visit(this S&& self, F&& visitor, U&& value) {
-    std::invoke(std::forward<F>(visitor), std::forward<S>(self), std::forward<U>(value));
-  }
-
   template <typename F, typename U>
     requires(std::same_as<std::remove_cvref_t<U>, T>)
   void descend(F&& visitor, U&& value) {
     template for (constexpr auto Idx : std::views::iota(0ZU, members.size())) {
       constexpr auto M = members[Idx];
       if constexpr (!meta::has_annotation(M, ^^annotations::Skip)){
-        Member<Idx, M, typename[:type_of(M):]>{}.visit(visitor, value.[:M:]);
+        visitor(Member<Idx, M, typename[:type_of(M):]>{}, value.[:M:]);
       }
     }
   }
@@ -87,12 +75,6 @@ struct Meta<T> {
     typename type::mapped_type;
   };
 
-  template <typename S, typename F, typename U>
-    requires(std::same_as<std::remove_cvref_t<U>, T>)
-  void visit(this S&& self, F&& visitor, U&& value) {
-    std::invoke(std::forward<F>(visitor), std::forward<S>(self), std::forward<U>(value));
-  }
-
   template <typename F, typename U>
     requires(std::same_as<std::remove_cvref_t<U>, T>)
   void descend(F&& visitor, U&& value) {
@@ -111,8 +93,10 @@ struct Meta<std::optional<T>> {
 
   template <typename S, typename F, typename U>
     requires(std::same_as<std::remove_cvref_t<U>, type>)
-  void visit(this S&& self, F&& visitor, U&& value) {
-    std::invoke(std::forward<F>(visitor), std::forward<S>(self), std::forward<U>(value));
+  void descend(this S&& self, F&& visitor, U&& value) {
+    if (value.has_value()) {
+      std::invoke(std::forward<F>(visitor), std::forward<S>(self), *value);
+    }
   }
 };
 
@@ -123,9 +107,7 @@ struct Meta<T> {
 
   template <typename S, typename F, typename U>
     requires(std::same_as<std::remove_cvref_t<U>, type>)
-  void visit(this S&& self, F&& visitor, U&& value) {
-    std::invoke(std::forward<F>(visitor), std::forward<S>(self), std::forward<U>(value));
-  }
+  void descend(this S&& self, F&& visitor, U&& value) {}
 };
 
 }  // namespace rsl::serializer

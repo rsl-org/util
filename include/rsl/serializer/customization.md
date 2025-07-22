@@ -7,11 +7,16 @@ struct Zoinks{
 };
 
 template <>
-constexpr inline auto rsl::canonical_name_of<Zoinks> = "Foo";
+constexpr inline auto rsl::canonical_name_v<Zoinks> = "Foo";
+
+template <>
+struct rsl::canonical_name<Zoinks> {
+  constexpr inline auto value = "Foo";
+}
 ```
 
 ## Annotated classes
-Class types can be annotated with `canonical_name` to override `rsl::canonical_name_of`. For example
+Class types can be annotated with `canonical_name` to override `rsl::canonical_name_v`. For example
 ```cpp
 struct [[=rsl::canonical_name("Bar")]] Foo{};
 

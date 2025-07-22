@@ -6,44 +6,70 @@
 
 #include <rsl/constant_wrapper>
 #include <rsl/serializer/repr/serializer.hpp>
-#include <rsl/serializer/canonical_name.hpp>
+#include <rsl/serializer/name.hpp>
 
 namespace rsl {
+using _serialize_impl::NameMode;
+
 using _serialize_impl::canonical_name;
+using _serialize_impl::canonical_name_v;
+using _serialize_impl::fully_qualified_name_v;
+using _serialize_impl::name_v;
+using _serialize_impl::qualified_name_v;
+
 using _serialize_impl::canonical_name_of;
-
-using _serialize_impl::qualified_name;
-using _serialize_impl::qualified_name_of;
-using _serialize_impl::fully_qualified_name;
 using _serialize_impl::fully_qualified_name_of;
+using _serialize_impl::name_of;
+using _serialize_impl::qualified_name_of;
 
-template <auto V>
-struct Constant{};
 
-struct repr_tag{};
+using repr_options = serializer::_repr_impl::Options;
 
 template <typename T>
-constexpr std::string repr(T&& value, repr_tag={}){
-  auto visitor = rsl::serializer::_repr_impl::Serializer{};
-  serializer::Meta<std::remove_cvref_t<T>>{}.visit(visitor, std::forward<T>(value));
+constexpr std::string repr(T&& value, repr_options opts = {}) {
+  auto visitor = rsl::serializer::_repr_impl::Serializer{opts};
+  visitor(serializer::Meta<std::remove_cvref_t<T>>(), std::forward<T>(value));
   return visitor.finalize();
 }
 
 template <auto V>
-constexpr std::string repr(rsl::constant_wrapper<V>, repr_tag={}){
-  return rsl::repr(V);
+constexpr std::string repr(rsl::constant_wrapper<V>, repr_options opts = {}) {
+  return rsl::repr(V, opts);
+}
+
+template <typename T, repr_options Opts>
+constexpr std::string repr(T&& value, rsl::constant_wrapper<Opts> = {}) {
+  return rsl::repr(std::forward<T>(value), Opts);
+}
+
+template <auto V, repr_options Opts>
+constexpr std::string repr(rsl::constant_wrapper<V>, rsl::constant_wrapper<Opts> = {}) {
+  return rsl::repr(V, Opts);
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& stream, std::string(*)(T&&, repr_tag)){
+std::ostream& operator<<(std::ostream& stream, std::string (*)(T&&, repr_options)) {
+  return stream << std::string_view(define_static_string(display_string_of(remove_cvref(^^T))));
+}
+
+template <typename T, repr_options Opts>
+std::ostream& operator<<(std::ostream& stream, std::string (*)(T&&, rsl::constant_wrapper<Opts>)) {
   return stream << std::string_view(define_static_string(display_string_of(remove_cvref(^^T))));
 }
 
 template <auto V>
-std::ostream& operator<<(std::ostream& stream, std::string(*fnc)(Constant<V>, repr_tag)){
-  return stream << fnc(Constant<V>{}, {});
+std::ostream& operator<<(std::ostream& stream,
+                         std::string (*fnc)(rsl::constant_wrapper<V>, repr_options)) {
+  return stream << fnc(rsl::constant_wrapper<V>{}, {});
 }
+
+template <auto V, repr_options Opts>
+std::ostream& operator<<(std::ostream& stream,
+                         std::string (*fnc)(rsl::constant_wrapper<V>,
+                                            rsl::constant_wrapper<Opts>)) {
+  return stream << fnc(rsl::constant_wrapper<V>{}, {});
 }
+}  // namespace rsl
 
 #ifdef RSL_GLOBAL_REPR
 using rsl::repr;

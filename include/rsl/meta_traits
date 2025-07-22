@@ -90,4 +90,10 @@ concept nonstatic_member_function = is_nonstatic_member_function(R);
 
 template <std::meta::info R, std::meta::info T>
 concept annotated_with = has_annotation(R, T);
+
+template <typename T>
+concept complete_type = is_complete_type(^^T);
+
+template <typename T>
+concept incomplete_type = !complete_type<T>;
 }  // namespace rsl::meta
