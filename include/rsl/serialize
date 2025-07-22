@@ -1,7 +1,8 @@
 #pragma once
 #include <ranges>
+#include <rsl/meta_traits>
+
 #include "serializer/machinery.hpp"
-#include "serializer/util.hpp"
 
 namespace rsl {
 template <typename T, typename V>
@@ -10,10 +11,10 @@ void serialize(T&& serializer, V&& data) {
                                                    std::forward<V>(data));
 }
 
-template <serializer::complete_type V, typename T, std::ranges::forward_range R>
+template <meta::complete_type V, typename T, std::ranges::forward_range R>
 V deserialize(T&& deserializer, R&& data) {}
 
-template <typename T, serializer::complete_type V>
+template <typename T, meta::complete_type V>
 void serialize_type(T&& serializer) {
   return serializer.template operator()<^^V>();
 }

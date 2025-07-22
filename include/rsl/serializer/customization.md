@@ -7,21 +7,23 @@ struct Zoinks{
 };
 
 template <>
-constexpr inline auto rsl::canonical_name_v<Zoinks> = "Foo";
+constexpr inline auto rsl::preferred_name<Zoinks> {
+  constexpr static auto value = "Foo";
+};
 
 template <>
-struct rsl::canonical_name<Zoinks> {
+struct rsl::preferred_name<Zoinks> {
   constexpr inline auto value = "Foo";
 }
 ```
 
 ## Annotated classes
-Class types can be annotated with `canonical_name` to override `rsl::canonical_name_v`. For example
+Class types can be annotated with `preferred_name` to set a preferred name. For example
 ```cpp
-struct [[=rsl::canonical_name("Bar")]] Foo{};
+struct [[=rsl::preferred_name("Bar")]] Foo{};
 
 template <typename T>
-struct [[=rsl::canonical_name("Foo<"s + display_string_of(^^T) + ">")]] Bar {};
+struct [[=rsl::preferred_name("Foo<"s + display_string_of(^^T) + ">")]] Bar {};
 ```
 
 
@@ -30,7 +32,7 @@ struct [[=rsl::canonical_name("Foo<"s + display_string_of(^^T) + ">")]] Bar {};
 struct Boings {
   int foo;
 
-  constexpr static auto canonical_name = "Bar";
+  constexpr static auto preferred_name = "Bar";
 };
 
 ```
@@ -38,22 +40,22 @@ struct Boings {
 ## Member Functions
 ```cpp
 struct Foo {
-  static consteval char const* canonical_name() { return "F"; }
+  static consteval char const* preferred_name() { return "F"; }
 };
 ```
-The return type of `canonical_name` must be convertible to `std::string_view`. `canonical_name` members are only considered if they are static and evaluatable in constant-evaluated context.
+The return type of `preferred_name` must be convertible to `std::string_view`. `preferred_name` members are only considered if they are static and evaluatable in constant-evaluated context.
 
 ## ADL
 ```cpp
 struct Foo {
-  friend consteval std::string_view canonical_name(std::type_identity<Foo>) { return "A"; }
+  friend consteval std::string_view preferred_name(std::type_identity<Foo>) { return "A"; }
 };
 
 struct Bar {};
-consteval std::string_view canonical_name(std::type_identity<Bar>) { return "B"; }
+consteval std::string_view preferred_name(std::type_identity<Bar>) { return "B"; }
 ```
 
-The return type of `canonical_name` must be convertible to `std::string_view`. `canonical_name` members are only considered if they are static and evaluatable in constant-evaluated context.
+The return type of `preferred_name` must be convertible to `std::string_view`. `preferred_name` members are only considered if they are static and evaluatable in constant-evaluated context.
 
 ## Precedence
 Template Specialization > Annotation > Member Constant > Member Function > ADL 

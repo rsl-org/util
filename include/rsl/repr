@@ -10,17 +10,16 @@
 
 namespace rsl {
 using _serialize_impl::NameMode;
+using _serialize_impl::preferred_name;
 
-using _serialize_impl::canonical_name;
-using _serialize_impl::canonical_name_v;
-using _serialize_impl::fully_qualified_name_v;
-using _serialize_impl::name_v;
-using _serialize_impl::qualified_name_v;
-
-using _serialize_impl::canonical_name_of;
-using _serialize_impl::fully_qualified_name_of;
+using _serialize_impl::type_name;
+using _serialize_impl::unqualified_name;
+using _serialize_impl::qualified_name;
+using _serialize_impl::fully_qualified_name;
 using _serialize_impl::name_of;
+using _serialize_impl::unqualified_name_of;
 using _serialize_impl::qualified_name_of;
+using _serialize_impl::fully_qualified_name_of;
 
 
 using repr_options = serializer::_repr_impl::Options;

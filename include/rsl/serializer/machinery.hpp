@@ -2,7 +2,6 @@
 #include <meta>
 #include <ranges>
 #include <rsl/meta_traits>
-#include "util.hpp"
 #include "annotations.hpp"
 
 namespace rsl::serializer {

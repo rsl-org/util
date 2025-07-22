@@ -14,34 +14,34 @@ namespace _impl {
 template <typename T>
 consteval std::string get_via_adl() {
   if constexpr (requires(std::type_identity<T> id) {
-                  { canonical_name(id) } -> std::convertible_to<std::string>;
+                  { preferred_name(id) } -> std::convertible_to<std::string>;
                 }) {
-    return std::string(canonical_name(std::type_identity<T>()));
+    return std::string(preferred_name(std::type_identity<T>()));
   }
   return "";
 }
 }  // namespace _impl
 
 template <typename T>
-struct canonical_name;
+struct preferred_name;
 
 template <>
-struct canonical_name<void> {
+struct preferred_name<void> {
   constexpr static auto value = "void";
   char const* data            = nullptr;
-  consteval explicit canonical_name(std::string_view name) : data(define_static_string(name)) {}
+  consteval explicit preferred_name(std::string_view name) : data(define_static_string(name)) {}
 };
 
 template <std::convertible_to<std::string_view> T>
-canonical_name(T&&) -> canonical_name<void>;
+preferred_name(T&&) -> preferred_name<void>;
 
 template <>
-struct canonical_name<std::string> {
+struct preferred_name<std::string> {
   constexpr static auto value = "string";
 };
 
 template <>
-struct canonical_name<std::string_view> {
+struct preferred_name<std::string_view> {
   constexpr static auto value = "string_view";
 };
 
@@ -49,7 +49,7 @@ enum class NameMode : std::uint8_t { unqualified, qualified, fully_qualified };
 
 namespace _impl {
 template <typename T>
-consteval std::string get_canonical_name(NameMode mode);
+consteval std::string get_type_name(NameMode mode);
 
 consteval std::vector<std::string_view> get_fully_qualified_name(std::meta::info R) {
   std::vector<std::string_view> name{identifier_of(R)};
@@ -81,48 +81,48 @@ consteval std::string namespace_prefix() {
 }  // namespace _impl
 
 template <typename T, NameMode Mode = NameMode::unqualified>
-constexpr inline std::string_view name_v = define_static_string(_impl::get_canonical_name<T>(Mode));
+constexpr inline std::string_view type_name = define_static_string(_impl::get_type_name<T>(Mode));
 
 template <typename T>
-constexpr inline std::string_view canonical_name_v = name_v<T, NameMode::unqualified>;
+constexpr inline std::string_view unqualified_name = type_name<T, NameMode::unqualified>;
 
 template <typename T>
-constexpr inline std::string_view qualified_name_v = name_v<T, NameMode::qualified>;
+constexpr inline std::string_view qualified_name = type_name<T, NameMode::qualified>;
 
 template <typename T>
-constexpr inline std::string_view fully_qualified_name_v = name_v<T, NameMode::fully_qualified>;
+constexpr inline std::string_view fully_qualified_name = type_name<T, NameMode::fully_qualified>;
 
 
 template <typename T, NameMode Mode>
-constexpr inline std::string_view name_v<T const, Mode> =
-    define_static_string(std::string(name_v<T, Mode>) + " const");
+constexpr inline std::string_view type_name<T const, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + " const");
 
 template <typename T, NameMode Mode>
-constexpr inline std::string_view name_v<T const&, Mode> =
-    define_static_string(std::string(name_v<T, Mode>) + " const&");
+constexpr inline std::string_view type_name<T const&, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + " const&");
 
 template <typename T, NameMode Mode>
-constexpr inline std::string_view name_v<T const&&, Mode> =
-    define_static_string(std::string(name_v<T, Mode>) + " const&&");
+constexpr inline std::string_view type_name<T const&&, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + " const&&");
 
 template <typename T, NameMode Mode>
-constexpr inline std::string_view name_v<T&, Mode> =
-    define_static_string(std::string(name_v<T, Mode>) + "&");
+constexpr inline std::string_view type_name<T&, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + "&");
 
 template <typename T, NameMode Mode>
-constexpr inline std::string_view name_v<T&&, Mode> =
-    define_static_string(std::string(name_v<T, Mode>) + "&&");
+constexpr inline std::string_view type_name<T&&, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + "&&");
 
 template <typename T, NameMode Mode>  // TODO require T is not a function pointer
-constexpr inline std::string_view name_v<T*, Mode> =
-    define_static_string(std::string(name_v<T, Mode>) + "*");
+constexpr inline std::string_view type_name<T*, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + "*");
 
 consteval std::string_view name_of(std::meta::info R, NameMode mode = NameMode::unqualified) {
   if (is_type(R)) {
     // return define_static_string(extract<std::string (*)()>(
     //     substitute(^^_impl::get_canonical_recurse, {R, std::meta::reflect_constant(mode)}))());
     return define_static_string(extract<std::string_view>(
-        substitute(^^name_v, {R, std::meta::reflect_constant(mode)})));
+        substitute(^^type_name, {R, std::meta::reflect_constant(mode)})));
   } else {
     // TODO handle qualified/fully_qualified
     // TODO collapse t.operator() to t()?
@@ -130,7 +130,7 @@ consteval std::string_view name_of(std::meta::info R, NameMode mode = NameMode::
   }
 }
 
-consteval std::string_view canonical_name_of(std::meta::info R) {
+consteval std::string_view unqualified_name_of(std::meta::info R) {
   return name_of(R, NameMode::unqualified);
 }
 
@@ -144,7 +144,7 @@ consteval std::string_view fully_qualified_name_of(std::meta::info R) {
 
 namespace _impl {
 template <typename T>
-consteval std::string get_canonical_name(NameMode mode) {
+consteval std::string get_type_name(NameMode mode) {
   if constexpr (std::is_fundamental_v<T>) {
     return std::string(display_string_of(^^T));
   }
@@ -157,26 +157,26 @@ consteval std::string get_canonical_name(NameMode mode) {
      ret += _impl::namespace_prefix<std::remove_cvref_t<T>>();
   }
 
-  if constexpr (rsl::meta::complete_type<canonical_name<T>>) {
-    return ret + canonical_name<T>::value;
+  if constexpr (rsl::meta::complete_type<preferred_name<T>>) {
+    return ret + preferred_name<T>::value;
   }
-  if constexpr (is_enumerable_type(^^T) && rsl::meta::has_annotation<canonical_name<void>>(^^T)) {
-    return ret + [:constant_of(annotations_of(^^T, ^^canonical_name<void>)[0]):].data;
-  }
-  if constexpr (requires {
-                  { T::canonical_name } -> std::convertible_to<std::string>;
-                }) {
-    return ret + T::canonical_name;
+  if constexpr (is_enumerable_type(^^T) && rsl::meta::has_annotation<preferred_name<void>>(^^T)) {
+    return ret + [:constant_of(annotations_of(^^T, ^^preferred_name<void>)[0]):].data;
   }
   if constexpr (requires {
-                  { T::canonical_name() } -> std::convertible_to<std::string>;
+                  { T::preferred_name } -> std::convertible_to<std::string>;
                 }) {
-    return ret + T::canonical_name();
+    return ret + T::preferred_name;
+  }
+  if constexpr (requires {
+                  { T::preferred_name() } -> std::convertible_to<std::string>;
+                }) {
+    return ret + T::preferred_name();
   }
   if constexpr (requires(std::type_identity<T> id) {
-                  { canonical_name(id) } -> std::convertible_to<std::string>;
+                  { preferred_name(id) } -> std::convertible_to<std::string>;
                 }) {
-    return ret + canonical_name(std::type_identity<T>());
+    return ret + preferred_name(std::type_identity<T>());
   }
 
   if (auto name = _impl::get_via_adl<T>(); !name.empty()) {
@@ -208,7 +208,7 @@ consteval std::string get_canonical_name(NameMode mode) {
       }
       if (is_type(arg)) {
         ret += extract<std::string_view>(
-            substitute(^^name_v, {arg, std::meta::reflect_constant(mode)}));
+            substitute(^^type_name, {arg, std::meta::reflect_constant(mode)}));
       } else {
         // TODO use repr for values
         ret += display_string_of(arg);

@@ -54,11 +54,11 @@ class Serializer {
   template <typename T>
   void print_type() {
         if (opts.names == _serialize_impl::NameMode::qualified) {
-      out << _serialize_impl::qualified_name_v<std::remove_cvref_t<T>>;
+      out << _serialize_impl::qualified_name<std::remove_cvref_t<T>>;
     } else if (opts.names == _serialize_impl::NameMode::fully_qualified) {
-      out << _serialize_impl::fully_qualified_name_v<std::remove_cvref_t<T>>;
+      out << _serialize_impl::fully_qualified_name<std::remove_cvref_t<T>>;
     } else {
-      out << _serialize_impl::canonical_name_v<std::remove_cvref_t<T>>;
+      out << _serialize_impl::unqualified_name<std::remove_cvref_t<T>>;
     }
   }
 
