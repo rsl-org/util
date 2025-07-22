@@ -80,54 +80,42 @@ consteval std::string namespace_prefix() {
 }
 }  // namespace _impl
 
-template <typename T>
-constexpr inline std::string_view canonical_name_v =
-    define_static_string(_impl::get_canonical_name<std::remove_cvref_t<T>>(NameMode::unqualified));
-
-template <typename T>
-constexpr inline std::string_view qualified_name_v =
-    define_static_string(_impl::namespace_prefix<std::remove_cvref_t<T>>() +
-                         _impl::get_canonical_name<T>(NameMode::qualified));
-
-template <typename T>
-constexpr inline std::string_view fully_qualified_name_v =
-    define_static_string("::" + _impl::namespace_prefix<std::remove_cvref_t<T>>() +
-                         _impl::get_canonical_name<T>(NameMode::fully_qualified));
-
-template <typename T>
-  requires std::is_fundamental_v<T>
-constexpr inline std::string_view fully_qualified_name_v<T> = canonical_name_v<T>;
-
 template <typename T, NameMode Mode = NameMode::unqualified>
-constexpr inline std::string_view name_v =
-    Mode == NameMode::qualified         ? qualified_name_v<T>
-    : Mode == NameMode::fully_qualified ? fully_qualified_name_v<T>
-                                        : canonical_name_v<T>;
-
+constexpr inline std::string_view name_v = define_static_string(_impl::get_canonical_name<T>(Mode));
 
 template <typename T>
-constexpr inline std::string_view canonical_name_v<T const> =
-    define_static_string(std::string(canonical_name_v<T>) + " const");
+constexpr inline std::string_view canonical_name_v = name_v<T, NameMode::unqualified>;
 
 template <typename T>
-constexpr inline std::string_view canonical_name_v<T const&> =
-    define_static_string(std::string(canonical_name_v<T>) + " const&");
+constexpr inline std::string_view qualified_name_v = name_v<T, NameMode::qualified>;
 
 template <typename T>
-constexpr inline std::string_view canonical_name_v<T const&&> =
-    define_static_string(std::string(canonical_name_v<T>) + " const&&");
+constexpr inline std::string_view fully_qualified_name_v = name_v<T, NameMode::fully_qualified>;
 
-template <typename T>
-constexpr inline std::string_view canonical_name_v<T&> =
-    define_static_string(std::string(canonical_name_v<T>) + "&");
 
-template <typename T>
-constexpr inline std::string_view canonical_name_v<T&&> =
-    define_static_string(std::string(canonical_name_v<T>) + "&&");
+template <typename T, NameMode Mode>
+constexpr inline std::string_view name_v<T const, Mode> =
+    define_static_string(std::string(name_v<T, Mode>) + " const");
 
-template <typename T>  // TODO require T is not a function pointer
-constexpr inline std::string_view canonical_name_v<T*> =
-    define_static_string(std::string(canonical_name_v<T>) + "*");
+template <typename T, NameMode Mode>
+constexpr inline std::string_view name_v<T const&, Mode> =
+    define_static_string(std::string(name_v<T, Mode>) + " const&");
+
+template <typename T, NameMode Mode>
+constexpr inline std::string_view name_v<T const&&, Mode> =
+    define_static_string(std::string(name_v<T, Mode>) + " const&&");
+
+template <typename T, NameMode Mode>
+constexpr inline std::string_view name_v<T&, Mode> =
+    define_static_string(std::string(name_v<T, Mode>) + "&");
+
+template <typename T, NameMode Mode>
+constexpr inline std::string_view name_v<T&&, Mode> =
+    define_static_string(std::string(name_v<T, Mode>) + "&&");
+
+template <typename T, NameMode Mode>  // TODO require T is not a function pointer
+constexpr inline std::string_view name_v<T*, Mode> =
+    define_static_string(std::string(name_v<T, Mode>) + "*");
 
 consteval std::string_view name_of(std::meta::info R, NameMode mode = NameMode::unqualified) {
   if (is_type(R)) {
@@ -157,30 +145,42 @@ consteval std::string_view fully_qualified_name_of(std::meta::info R) {
 namespace _impl {
 template <typename T>
 consteval std::string get_canonical_name(NameMode mode) {
+  if constexpr (std::is_fundamental_v<T>) {
+    return std::string(display_string_of(^^T));
+  }
+
+  std::string ret;
+  if (mode == NameMode::fully_qualified) {
+    ret += "::";
+  }
+  if (mode != NameMode::unqualified) {
+     ret += _impl::namespace_prefix<std::remove_cvref_t<T>>();
+  }
+
   if constexpr (rsl::meta::complete_type<canonical_name<T>>) {
-    return std::string(canonical_name<T>::value);
+    return ret + canonical_name<T>::value;
   }
   if constexpr (is_enumerable_type(^^T) && rsl::meta::has_annotation<canonical_name<void>>(^^T)) {
-    return std::string([:constant_of(annotations_of(^^T, ^^canonical_name<void>)[0]):].data);
+    return ret + [:constant_of(annotations_of(^^T, ^^canonical_name<void>)[0]):].data;
   }
   if constexpr (requires {
                   { T::canonical_name } -> std::convertible_to<std::string>;
                 }) {
-    return std::string(T::canonical_name);
+    return ret + T::canonical_name;
   }
   if constexpr (requires {
                   { T::canonical_name() } -> std::convertible_to<std::string>;
                 }) {
-    return std::string(T::canonical_name());
+    return ret + T::canonical_name();
   }
   if constexpr (requires(std::type_identity<T> id) {
                   { canonical_name(id) } -> std::convertible_to<std::string>;
                 }) {
-    return std::string(canonical_name(std::type_identity<T>()));
+    return ret + canonical_name(std::type_identity<T>());
   }
 
   if (auto name = _impl::get_via_adl<T>(); !name.empty()) {
-    return name;
+    return ret + name;
   }
 
   if constexpr (has_template_arguments(^^T)) {
@@ -193,11 +193,10 @@ consteval std::string get_canonical_name(NameMode mode) {
       }
     }
     ++required;
-    std::string ret;
     if (has_identifier(templ)) {
-      ret = std::string(identifier_of(templ));
+      ret += std::string(identifier_of(templ));
     } else {
-      ret = "unnamed-template";
+      ret += "unnamed-template";
     }
     ret += "<";
     bool first = true;
@@ -218,7 +217,7 @@ consteval std::string get_canonical_name(NameMode mode) {
     ret += ">";
     return ret;
   } else {
-    return std::string(display_string_of(^^T));
+    return ret + display_string_of(^^T);
   }
 }
 }  // namespace _impl
