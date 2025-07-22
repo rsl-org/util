@@ -5,28 +5,27 @@
 #include <meta>
 
 #include <rsl/constant_wrapper>
-#include <rsl/serializer/repr/serializer.hpp>
-#include <rsl/serializer/name.hpp>
+#include <rsl/serializer/repr.hpp>
 
 namespace rsl {
-using _serialize_impl::NameMode;
-using _serialize_impl::preferred_name;
+using serializer::NameMode;
+using serializer::preferred_name;
 
-using _serialize_impl::type_name;
-using _serialize_impl::unqualified_name;
-using _serialize_impl::qualified_name;
-using _serialize_impl::fully_qualified_name;
-using _serialize_impl::name_of;
-using _serialize_impl::unqualified_name_of;
-using _serialize_impl::qualified_name_of;
-using _serialize_impl::fully_qualified_name_of;
+using serializer::type_name;
+using serializer::unqualified_name;
+using serializer::qualified_name;
+using serializer::fully_qualified_name;
+using serializer::name_of;
+using serializer::unqualified_name_of;
+using serializer::qualified_name_of;
+using serializer::fully_qualified_name_of;
 
 
-using repr_options = serializer::_repr_impl::Options;
+using repr_options = serializer::Options;
 
 template <typename T>
 constexpr std::string repr(T&& value, repr_options opts = {}) {
-  auto visitor = rsl::serializer::_repr_impl::Serializer{opts};
+  auto visitor = rsl::serializer::ReprVisitor{opts};
   rsl::serialize(visitor, std::forward<T>(value));
   return visitor.finalize();
 }
