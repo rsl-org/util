@@ -147,13 +147,9 @@ constexpr void review_violation(source_location sloc, std::string_view assertion
 }
 #endif
 
-struct Assertion {
-  bool result;
-  Assertion() = delete ("Condition missing");
-  constexpr explicit Assertion(bool result, std::string_view message = {}) : result(result) {}
-  constexpr explicit(false) operator bool() const { return result; }
-};
-
+constexpr bool assert_condition_wrapper(bool result, std::string_view message = {}) {
+  return result;
+}
 }  // namespace _assert_impl
 }  // namespace rsl
 
@@ -164,7 +160,7 @@ struct Assertion {
   do {                                                                                       \
     static constexpr std::source_location _sloc = std::source_location::current();           \
     [&] {                                                                                    \
-      if (auto _assertion = ::rsl::_assert_impl::Assertion(__VA_ARGS__); !_assertion) {      \
+      if (!::rsl::_assert_impl::assert_condition_wrapper(__VA_ARGS__)) {                     \
         ::rsl::_assert_impl::assert_violation(_sloc,                                         \
                                               #__VA_ARGS__,                                  \
                                               ::rsl::_expect_impl::decompose->*__VA_ARGS__); \
@@ -173,14 +169,14 @@ struct Assertion {
   } while (false)
 
 #if RSL_IMPL_ENABLE_REVIEW
-#  define constexpr_review(...)                                                           \
-    do {                                                                                  \
-      static constexpr auto _sloc = ::rsl::_assert_impl::source_location();               \
-      [&] {                                                                               \
-        if (auto _assertion = ::rsl::_assert_impl::Assertion(__VA_ARGS__); !_assertion) { \
-          ::rsl::_assert_impl::review_violation(_sloc, #__VA_ARGS__);                     \
-        };                                                                                \
-      }();                                                                                \
+#  define constexpr_review(...)                                             \
+    do {                                                                    \
+      static constexpr auto _sloc = ::rsl::_assert_impl::source_location(); \
+      [&] {                                                                 \
+        if (::rsl::_assert_impl::assert_condition_wrapper(__VA_ARGS__)) {   \
+          ::rsl::_assert_impl::review_violation(_sloc, #__VA_ARGS__);       \
+        };                                                                  \
+      }();                                                                  \
     } while (false)
 
 namespace {
@@ -188,5 +184,5 @@ static bool const _rsl_review_collected = ::rsl::_assert_impl::collect_review<[]
 }
 #else
 // even with reviews disabled, ensure they are syntactically valid
-#define constexpr_review(...) sizeof((__VA_ARGS__)?true:false)
+#  define constexpr_review(...) sizeof((__VA_ARGS__) ? true : false)
 #endif
