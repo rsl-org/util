@@ -303,6 +303,7 @@ public:
   }
 };
 
+namespace _impl {
 template <std::meta::info R, NameMode mode>
 consteval std::string stringify_constant_impl() {
   auto visitor = ReprVisitor{{.names = mode}};
@@ -314,6 +315,7 @@ consteval std::string stringify_constant(std::meta::info R, NameMode mode = Name
   return extract<std::string (*)()>(
       substitute(^^stringify_constant_impl,
                  {reflect_constant(R), std::meta::reflect_constant(mode)}))();
+}
 }
 
 consteval std::string_view stringify_template_args(std::meta::info R,
@@ -342,7 +344,7 @@ consteval std::string_view stringify_template_args(std::meta::info R,
       ret += extract<std::string_view>(
           substitute(^^type_name, {arg, std::meta::reflect_constant(mode)}));
     } else if (is_value(arg) || is_object(arg)) {
-      ret += stringify_constant(arg, mode);
+      ret += _impl::stringify_constant(arg, mode);
     } else {
       ret += display_string_of(arg);
     }

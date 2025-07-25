@@ -62,7 +62,7 @@ struct Meta<T> {
     template for (constexpr auto Idx : std::views::iota(0ZU, members.size())) {
       constexpr auto M = members[Idx];
       if constexpr (!meta::has_annotation(M, ^^annotations::Skip)) {
-        visitor(Member<Idx, M, typename[:type_of(M):]>{}, value.[:M:]);
+        std::invoke(visitor, Member<Idx, M, typename[:type_of(M):]>{}, value.[:M:]);
       }
     }
   }
@@ -99,8 +99,8 @@ struct Meta<std::pair<First, Second>> {
   template <typename S, typename F, typename U>
     requires(std::same_as<std::remove_cvref_t<U>, type>)
   constexpr void descend(this S&& self, F&& visitor, U&& value) {
-    std::invoke(std::forward<F>(visitor), std::forward<S>(self), value.first);
-    std::invoke(std::forward<F>(visitor), std::forward<S>(self), value.second);
+    std::invoke(std::forward<F>(visitor), Meta<std::remove_cvref_t<First>>{}, value.first);
+    std::invoke(std::forward<F>(visitor), Meta<std::remove_cvref_t<Second>>{}, value.second);
   }
 };
 
@@ -112,10 +112,10 @@ struct Meta<std::optional<T>> {
   constexpr static bool is_optional     = true;
 
   template <typename S, typename F, typename U>
-    requires(std::same_as<std::remove_cvref_t<U>, type>)
+    // requires(std::same_as<std::remove_cvref_t<U>, type>)
   constexpr void descend(this S&& self, F&& visitor, U&& value) {
     if (value.has_value()) {
-      std::invoke(std::forward<F>(visitor), std::forward<S>(self), *value);
+      std::invoke(std::forward<F>(visitor), Meta<std::remove_cvref_t<T>>{}, *value);
     }
   }
 };
