@@ -1,0 +1,28 @@
+#pragma once
+#include <source_location>
+#include <string_view>
+#include <meta>
+#include <cstddef>
+
+#include <rsl/string_view>
+
+namespace rsl {
+struct source_location {
+  rsl::string_view file;
+  rsl::string_view function;
+  std::size_t line;
+  std::size_t column;
+
+  consteval source_location(std::source_location sloc = std::source_location::current())
+      : file(std::define_static_string(sloc.file_name()))
+      , function(std::define_static_string(sloc.function_name()))
+      , line(sloc.line())
+      , column(sloc.column()) {}
+
+  explicit source_location(rsl::string_view file, rsl::string_view function, std::size_t line, std::size_t column = 0)
+  : file(file)
+  , function(function)
+  , line(line)
+  , column(column) {}
+};
+}  // namespace rsl

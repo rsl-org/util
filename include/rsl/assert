@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstdio>
 
+#include <rsl/source_location>
 #include <rsl/expect>
 #include <rsl/string_view>
 #include <rsl/util/to_string.hpp>
@@ -90,19 +91,6 @@ constexpr void assert_violation(std::source_location sloc,
 
 #if RSL_IMPL_ENABLE_REVIEW
 
-struct source_location {
-  rsl::string_view file;
-  rsl::string_view function;
-  std::size_t line;
-  std::size_t column;
-
-  consteval explicit source_location(std::source_location sloc = std::source_location::current())
-      : file(std::define_static_string(sloc.file_name()))
-      , function(std::define_static_string(sloc.function_name()))
-      , line(sloc.line())
-      , column(sloc.column()) {}
-};
-
 inline std::vector<std::string>& observations() {
   static std::vector<std::string> value;
   return value;
@@ -169,14 +157,14 @@ constexpr bool assert_condition_wrapper(bool result, std::string_view message = 
   } while (false)
 
 #if RSL_IMPL_ENABLE_REVIEW
-#  define constexpr_review(...)                                             \
-    do {                                                                    \
-      static constexpr auto _sloc = ::rsl::_assert_impl::source_location(); \
-      [&] {                                                                 \
-        if (::rsl::_assert_impl::assert_condition_wrapper(__VA_ARGS__)) {   \
-          ::rsl::_assert_impl::review_violation(_sloc, #__VA_ARGS__);       \
-        };                                                                  \
-      }();                                                                  \
+#  define constexpr_review(...)                                           \
+    do {                                                                  \
+      static constexpr auto _sloc = ::rsl::source_location();             \
+      [&] {                                                               \
+        if (::rsl::_assert_impl::assert_condition_wrapper(__VA_ARGS__)) { \
+          ::rsl::_assert_impl::review_violation(_sloc, #__VA_ARGS__);     \
+        };                                                                \
+      }();                                                                \
     } while (false)
 
 namespace {
