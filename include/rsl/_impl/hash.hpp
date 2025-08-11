@@ -1,5 +1,4 @@
 #pragma once
-#include <concepts>
 #include <cstdint>
 #include <string_view>
 
@@ -22,11 +21,13 @@ public:
   [[nodiscard]] constexpr std::size_t finalize() const { return state; }
 };
 
-constexpr std::uint32_t fnv1a(char const* str, std::size_t size) {
+using hash_t = std::uint64_t;
+constexpr hash_t fnv1a(char const* str, std::size_t size) {
   return FNV1a()(str, size).finalize();
 }
 
-constexpr std::uint32_t fnv1a(std::string_view str) {
+constexpr hash_t fnv1a(std::string_view str) {
   return FNV1a()(str).finalize();
 }
+
 }  // namespace rsl::_impl
