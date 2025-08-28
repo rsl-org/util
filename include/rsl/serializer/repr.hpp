@@ -242,8 +242,8 @@ consteval std::string get_type_name(NameMode mode) {
   if constexpr (rsl::meta::complete_type<preferred_name<T>>) {
     return ret + preferred_name<T>::value;
   }
-  if constexpr (is_enumerable_type(^^T) && rsl::meta::has_annotation<preferred_name<void>>(^^T)) {
-    return ret + [:constant_of(annotations_of(^^T, ^^preferred_name<void>)[0]):].data;
+  if constexpr (is_enumerable_type(^^T) && rsl::meta::has_annotation<preferred_name<_impl::Annotated>>(^^T)) {
+    return ret + [:constant_of(annotations_of(^^T, ^^preferred_name<_impl::Annotated>)[0]):].value;
   }
   if constexpr (requires {
                   { T::preferred_name } -> std::convertible_to<std::string>;

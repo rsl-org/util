@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <rsl/meta_traits>
+#include <rsl/string_view>
 
 namespace rsl::serializer {
 namespace _impl {
@@ -20,20 +21,21 @@ consteval std::string get_via_adl() {
   }
   return "";
 }
+
+struct Annotated {};
 }  // namespace _impl
 
 template <typename T>
 struct preferred_name;
 
 template <>
-struct preferred_name<void> {
-  constexpr static auto value = "void";
-  char const* data            = nullptr;
-  consteval explicit preferred_name(std::string_view name) : data(define_static_string(name)) {}
+struct preferred_name<_impl::Annotated> {
+  rsl::string_view value;
+  consteval explicit preferred_name(std::string_view name) : value(define_static_string(name)) {}
 };
 
 template <std::convertible_to<std::string_view> T>
-preferred_name(T&&) -> preferred_name<void>;
+preferred_name(T&&) -> preferred_name<_impl::Annotated>;
 
 template <>
 struct preferred_name<std::string> {
@@ -140,4 +142,4 @@ consteval std::string_view qualified_name_of(std::meta::info R) {
 consteval std::string_view fully_qualified_name_of(std::meta::info R) {
   return name_of(R, NameMode::fully_qualified);
 }
-}
+}  // namespace rsl::serializer
