@@ -37,7 +37,7 @@ if (BUILD_TESTING)
 
   find_package(GTest REQUIRED)
   target_link_libraries(rsl_util_test PRIVATE rsl_util)
-  target_link_libraries(rsl_util_test PRIVATE GTest::gtest GTest::gmock)
+  target_link_libraries(rsl_util_test PRIVATE GTest::gtest)
 
   include(GoogleTest)
   gtest_discover_tests(rsl_util_test)

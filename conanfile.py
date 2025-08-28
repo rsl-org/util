@@ -52,4 +52,4 @@ class RslUtilRecipe(ConanFile):
         self.cpp_info.components["util"].includedirs = ["include"]
         self.cpp_info.components["util"].bindirs = []
         self.cpp_info.components["util"].libdirs = []
-        self.cpp_info.components["util"].libs = ["rsl_util"]
+        self.cpp_info.components["util"].libs = []
