@@ -35,7 +35,7 @@ struct TestAggregate {
 
 TEST(Serializer, ToOwningAggregate) {
   using owning = rsl::to_owning<TestAggregate>;
-  ASSERT_SAME(decltype(&owning::name), std::string owning::*);
-  ASSERT_SAME(decltype(&owning::test), std::string owning::*);
-  ASSERT_SAME(decltype(&owning::zoinks), std::vector<std::string> owning::*);
+  ASSERT_SAME(decltype(&owning::name), char const* owning::*);
+  ASSERT_SAME(decltype(&owning::test), std::string_view owning::*);
+  ASSERT_SAME(decltype(&owning::zoinks), std::vector<std::string_view> owning::*);
 }
