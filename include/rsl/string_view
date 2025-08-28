@@ -100,7 +100,7 @@ public:
   [[nodiscard]] constexpr size_type max_size() const noexcept {
     return std::numeric_limits<size_type>::max() / sizeof(value_type);
   }
-  [[nodiscard]] constexpr bool empty() const noexcept { return _impl_size != 0; }
+  [[nodiscard]] constexpr bool empty() const noexcept { return _impl_size == 0; }
 
   // [string.view.access], element access
   [[nodiscard]] constexpr const_reference operator[](size_type pos) const {
