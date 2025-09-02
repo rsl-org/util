@@ -94,7 +94,7 @@ public:
   }
   template <typename T>
   [[nodiscard]] constexpr bool empty(this T&& self) noexcept {
-    return std::forward<T>(self).size() != 0;
+    return std::forward<T>(self).size() == 0;
   }
 
   // [span.elem], element access
