@@ -23,7 +23,7 @@ class RslUtilRecipe(ConanFile):
     default_options = {"coverage": False, "examples": False}
     generators = "CMakeToolchain", "CMakeDeps"
 
-    exports_sources = "CMakeLists.txt", "include/*"
+    exports_sources = "CMakeLists.txt", "include/*", "test/*", "cmake/*"
 
     def requirements(self):
         self.test_requires("gtest/1.14.0")
@@ -43,8 +43,8 @@ class RslUtilRecipe(ConanFile):
             cmake.build()
 
     def package(self):
-        # TODO verify this works
-        copy(self, "include/rsl/*", self.source_folder, self.package_folder)
+        cmake = CMake(self)
+        cmake.install()
 
     def package_info(self):
         self.cpp_info.set_property("cmake_file_name", "rsl-util")
