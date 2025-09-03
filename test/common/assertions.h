@@ -1,5 +1,7 @@
 #pragma once
 #include <gtest/gtest.h>
+#include <cstring>
+
 #include "type_name.h"
 
 #define DEPAREN(X) ESC(ISH X)
@@ -27,3 +29,5 @@
   }                                                            \
   template <typename TypeParam>                                \
   void test_suite_name##_##test_name##_ptest_body()
+
+#define EXPECT_MEM_EQ(_comp_a, _comp_b, _comp_size) EXPECT_EQ(std::memcmp(_comp_a, _comp_b, _comp_size), 0)

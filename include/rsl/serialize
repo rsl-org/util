@@ -5,6 +5,10 @@
 
 #include "serializer/machinery.hpp"
 #include "serializer/name.hpp"
+#include "serializer/binary.hpp"
+
+#include "stream/stream.hpp"
+#include "stream/memory.hpp"
 
 namespace rsl {
 
@@ -39,6 +43,29 @@ constexpr void serialize_type(T&& serializer) {
 template <typename T, std::ranges::forward_range R>
 consteval std::meta::info deserialize_type(T&& deserializer, R&& data) {
   return deserializer(data);
+}
+
+enum struct Endianess : std::uint8_t {
+  big,
+  little
+};
+
+template <Endianess endianess = Endianess::big, typename V>
+constexpr stream::IOStatus to_bytes(stream::OutputStream& stream, V&& data) {
+  auto serializer = serializer::Binary{stream};
+  serialize(serializer, std::forward<V>(data));
+  return serializer.status;
+}
+
+template <Endianess endianess = Endianess::big, typename V>
+constexpr std::vector<std::byte> to_bytes(V&& data) {
+  auto buffer = std::vector<std::byte>();
+  auto stream = stream::VectorOutputStream(buffer);
+  auto serializer = serializer::Binary(stream);
+
+  serialize(serializer, std::forward<V>(data));
+  buffer.shrink_to_fit();
+  return buffer;
 }
 
 }  // namespace rsl

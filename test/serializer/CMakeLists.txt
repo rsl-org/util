@@ -4,3 +4,4 @@ target_sources(rsl_util_test PRIVATE
 )
 
 add_subdirectory(repr)
+add_subdirectory(binary)
