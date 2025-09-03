@@ -1,5 +1,5 @@
-target_sources(rsl_util_test PRIVATE main.cpp)
-target_include_directories(rsl_util_test PRIVATE .)
+target_sources(rsl-util-test PRIVATE main.cpp)
+target_include_directories(rsl-util-test PRIVATE .)
 
 add_subdirectory(variant)
 add_subdirectory(tagged_variant)
