@@ -1,4 +1,4 @@
-target_sources(rsl_util PRIVATE 
+target_sources(rsl-util PRIVATE 
   memory.cpp
   socket.cpp
 )
