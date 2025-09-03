@@ -1,4 +1,4 @@
-target_sources(rsl_util_test PRIVATE
+target_sources(rsl-util-test PRIVATE
   incomplete.cpp
   value_category.cpp
 )
