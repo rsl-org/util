@@ -38,3 +38,18 @@ int main() {
 
 ### <rsl/tuple>
 `rsl::tuple` is a reflective reimplementation of `std::tuple`.
+
+### <rsl/format>
+`rsl::format` is an implementation of a formatter for the arbitrary aggregate types
+
+``` cpp
+struct S
+{
+  int i;
+  int j;
+};
+
+rsl::format(S{1,2}); // S{.i=1, .j=2}
+```
+If you define `RSL_INJECT_GLOBAL_FORMATTER`, this will automatically generate formatting of aggregate types for `std::formatter` to use.
+You can also use it directly inlude this functionality in the godbolt using `#include <https://raw.githubusercontent.com/rsl-org/util/refs/heads/master/include/rsl/format>`

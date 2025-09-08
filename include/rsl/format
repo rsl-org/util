@@ -1,0 +1,66 @@
+#pragma once
+#include <meta>
+#include <string>
+
+namespace rsl {
+
+template <typename T>
+auto format(T const& t) {
+  std::string result;
+  std::string_view type_label = "(unnamed-type)";
+  if constexpr (has_identifier(^^T))
+    type_label = identifier_of(^^T);
+  auto out = std::format_to(std::back_inserter(result), "{}{{", type_label);
+
+  auto delim = [first = true, &out]() mutable {
+    if (!first) {
+      *out++ = ',';
+      *out++ = ' ';
+    }
+    first = false;
+  };
+
+  constexpr auto access_ctx = std::meta::access_context::unchecked();
+
+  template for (constexpr auto base : define_static_array(bases_of(^^T, access_ctx))) {
+    delim();
+    out = std::format_to(out, "{}", (typename[:type_of(base):] const&)(t));
+  }
+
+  template for (constexpr auto mem :
+                define_static_array(nonstatic_data_members_of(^^T, access_ctx))) {
+    delim();
+
+    std::string_view mem_label = "unnamed-member";
+    if constexpr (has_identifier(mem))
+      mem_label = identifier_of(mem);
+
+    if constexpr (is_bit_field(mem) && !has_identifier(mem))
+      out = std::format_to(out, "(unnamed-bitfield)");
+    if constexpr (std::formattable<typename[:type_of(mem):], char>)
+      out = std::format_to(out, ".{}={}", mem_label, t.[:mem:]);
+    else
+      out = std::format_to(out, ".{}={}", mem_label, format(t.[:mem:]));
+  }
+
+  *out++ = '}';
+  return result;
+}
+
+}  // namespace rsl
+
+#if defined(RSL_INJECT_GLOBAL_FORMATTER)
+
+#  include <format>
+
+template<typename T>
+requires std::is_aggregate_v<T>
+struct std::formatter<T>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+    auto format(T const& t, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "{}", rsl::format(t));
+    }
+};
+#endif
