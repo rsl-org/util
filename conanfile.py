@@ -6,41 +6,51 @@ from conan.tools.files import copy
 class RslUtilRecipe(ConanFile):
     name = "rsl-util"
     version = "0.1"
-    package_type = "header-library"
+    package_type = "library"
 
     # Optional metadata
     license = "MIT"
     author = "Tsche che@pydong.org"
-    description = "Reflective header-only reimplementations of various standard library types."
+    description = "Reflective reimplementations of various standard library types and other utilities."
     topics = () # TODO
 
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
     options = {
-        "coverage": [True, False],
-        "examples": [True, False]
+        "shared": [True, False], "fPIC": [True, False],
+        "examples": [True, False], "tests": [True, False]
     }
-    default_options = {"coverage": False, "examples": False}
+    default_options = {"shared": False, "fPIC": True,
+                       "examples": False, "tests": False}
     generators = "CMakeToolchain", "CMakeDeps"
 
     exports_sources = "CMakeLists.txt", "include/*", "test/*", "cmake/*"
 
+    def config_options(self):
+        if self.settings.os == "Windows":
+            self.options.rm_safe("fPIC")
+
+    def configure(self):
+        if self.options.shared:
+            self.options.rm_safe("fPIC")
+
     def requirements(self):
-        self.test_requires("gtest/1.14.0")
+        if self.options.tests:
+            self.requires("gtest/1.14.0")
 
     def layout(self):
         cmake_layout(self)
 
     def build(self):
-        if not self.conf.get("tools.build:skip_test", default=False):
-            cmake = CMake(self)
-            cmake.configure(
-                variables={
-                    "BUILD_TESTING": not self.conf.get("tools.build:skip_test", default=False),
-                    "ENABLE_COVERAGE": self.options.coverage,
-                    "BUILD_EXAMPLES": self.options.examples
-                })
-            cmake.build()
+        cmake = CMake(self)
+        cmake.configure(
+            variables={
+                "BUILD_TESTING": self.options.tests,
+                "BUILD_EXAMPLES": self.options.examples
+            })
+
+        cmake.build()
+        cmake.install()
 
     def package(self):
         cmake = CMake(self)
@@ -48,8 +58,8 @@ class RslUtilRecipe(ConanFile):
 
     def package_info(self):
         self.cpp_info.set_property("cmake_file_name", "rsl-util")
-        self.cpp_info.components["util"].set_property("cmake_target_name", "rsl::util")
-        self.cpp_info.components["util"].includedirs = ["include"]
-        self.cpp_info.components["util"].bindirs = []
-        self.cpp_info.components["util"].libdirs = []
-        self.cpp_info.components["util"].libs = []
+
+        util = self.cpp_info.components["util"]
+        util.set_property("cmake_target_name", "rsl::util")
+        util.includedirs = ["include"]
+        util.libs = ["rsl-util"]

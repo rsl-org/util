@@ -1,1 +1,1 @@
-target_sources(rsl_util_test PRIVATE category.cpp)
+target_sources(rsl-util-test PRIVATE category.cpp)

@@ -1,4 +1,4 @@
-target_sources(rsl_util_test PRIVATE 
+target_sources(rsl-util-test PRIVATE 
   lifetime.cpp 
   special_members.cpp
   swap.cpp)

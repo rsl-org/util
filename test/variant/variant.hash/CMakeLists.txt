@@ -1,1 +1,1 @@
-target_sources(rsl_util_test PRIVATE monostate.cpp variant.cpp)
+target_sources(rsl-util-test PRIVATE monostate.cpp variant.cpp)
