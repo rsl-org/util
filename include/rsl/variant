@@ -913,8 +913,8 @@ public:
   using tags = E;
 
   storage_type* operator->() { return &this->storage; }
-  storage_type* operator->() const { return &this->storage; }
-  storage_type const* operator*() { return &this->storage; }
+  storage_type const* operator->() const { return &this->storage; }
+  storage_type* operator*() { return &this->storage; }
   storage_type const* operator*() const { return &this->storage; }
 
   explicit(false) operator E() const { return _tagged_variant_impl::transitions<E>[this->index()]; }
