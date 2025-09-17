@@ -51,14 +51,15 @@ concept span_compatible_sentinel_for =
 class span_common {
 public:
   // [span.sub], subviews
-  template <typename T, std::size_t Count>
+  template <std::size_t Count, typename T>
   constexpr span<typename std::remove_cvref_t<T>::element_type, Count> first(this T&& self) {
-    return {std::forward<T>(self).data(), Count};
+    return span<typename std::remove_cvref_t<T>::element_type, Count>{std::forward<T>(self).data(),
+                                                                      Count};
   }
 
-  template <typename T, std::size_t Count>
+  template <std::size_t Count, typename T>
   constexpr span<typename std::remove_cvref_t<T>::element_type, Count> last(this T&& self) {
-    return {self.data() + self.size() - Count, Count};
+    return span<typename std::remove_cvref_t<T>::element_type, Count>{self.data() + self.size() - Count, Count};
   }
 
   template <typename T>
@@ -80,17 +81,17 @@ public:
       this T&& self,
       typename std::remove_cvref_t<T>::size_type offset,
       typename std::remove_cvref_t<T>::size_type count = dynamic_extent) {
-        if (count == dynamic_extent) {
-          return {self.data() + offset, self.size() - offset};
-        }
-        return {self.data() + offset, count};
-      }
+    if (count == dynamic_extent) {
+      return {self.data() + offset, self.size() - offset};
+    }
+    return {self.data() + offset, count};
+  }
 
   // [span.obs], observers
   template <typename T>
   [[nodiscard]] constexpr typename std::remove_cvref_t<T>::size_type size_bytes(
       this T&& self) noexcept {
-    return std::forward<T>(self).size() * sizeof(typename T::element_type);
+    return std::forward<T>(self).size() * sizeof(typename std::remove_cvref_t<T>::element_type);
   }
   template <typename T>
   [[nodiscard]] constexpr bool empty(this T&& self) noexcept {
@@ -252,7 +253,8 @@ public:
   [[nodiscard]] constexpr std::size_t size() const { return Extent; }
 
   template <typename T, std::size_t Offset, std::size_t Count = dynamic_extent>
-  constexpr span<element_type, Count != dynamic_extent ? Count : Extent - Offset> subspan() const noexcept {
+  constexpr span<element_type, Count != dynamic_extent ? Count : Extent - Offset> subspan()
+      const noexcept {
     return {data() + Offset, Count == dynamic_extent ? size() - Offset : Count};
   }
 
