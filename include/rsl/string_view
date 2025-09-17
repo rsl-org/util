@@ -216,39 +216,87 @@ public:
   [[nodiscard]] constexpr bool contains(CharT const* other) const { return find(other) != npos; }
 
   // [string.view.find], searching
-  [[nodiscard]] constexpr size_type find(basic_string_view s, size_type pos = 0) const noexcept;
-  [[nodiscard]] constexpr size_type find(CharT c, size_type pos = 0) const noexcept;
-  [[nodiscard]] constexpr size_type find(CharT const* s, size_type pos, size_type n) const;
-  [[nodiscard]] constexpr size_type find(CharT const* s, size_type pos = 0) const;
-  [[nodiscard]] constexpr size_type rfind(basic_string_view s, size_type pos = npos) const noexcept;
-  [[nodiscard]] constexpr size_type rfind(CharT c, size_type pos = npos) const noexcept;
-  [[nodiscard]] constexpr size_type rfind(CharT const* s, size_type pos, size_type n) const;
-  [[nodiscard]] constexpr size_type rfind(CharT const* s, size_type pos = npos) const;
+  [[nodiscard]] constexpr size_type find(basic_string_view s, size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find(CharT c, size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find(c, pos);
+  }
+  [[nodiscard]] constexpr size_type find(CharT const* s, size_type pos, size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find(CharT const* s, size_type pos = 0) const {
+    return std::string_view(_impl_data, _impl_size).find(s, pos);
+  }
+  [[nodiscard]] constexpr size_type rfind(basic_string_view s, size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).rfind(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type rfind(CharT c, size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).rfind(c, pos);
+  }
+  [[nodiscard]] constexpr size_type rfind(CharT const* s, size_type pos, size_type n) const {
+    return std::string_view(_impl_data, _impl_size).rfind(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type rfind(CharT const* s, size_type pos = npos) const {
+    return std::string_view(_impl_data, _impl_size).rfind(s, pos);
+  }
 
   [[nodiscard]] constexpr size_type find_first_of(basic_string_view s,
-                                                  size_type pos = 0) const noexcept;
-  [[nodiscard]] constexpr size_type find_first_of(CharT c, size_type pos = 0) const noexcept;
-  [[nodiscard]] constexpr size_type find_first_of(CharT const* s, size_type pos, size_type n) const;
-  [[nodiscard]] constexpr size_type find_first_of(CharT const* s, size_type pos = 0) const;
+                                                  size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_first_of(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find_first_of(CharT c, size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_first_of(c, pos);
+  }
+  [[nodiscard]] constexpr size_type find_first_of(CharT const* s, size_type pos, size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find_first_of(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find_first_of(CharT const* s, size_type pos = 0) const {
+    return std::string_view(_impl_data, _impl_size).find_first_of(s, pos);
+  }
   [[nodiscard]] constexpr size_type find_last_of(basic_string_view s,
-                                                 size_type pos = npos) const noexcept;
-  [[nodiscard]] constexpr size_type find_last_of(CharT c, size_type pos = npos) const noexcept;
-  [[nodiscard]] constexpr size_type find_last_of(CharT const* s, size_type pos, size_type n) const;
-  [[nodiscard]] constexpr size_type find_last_of(CharT const* s, size_type pos = npos) const;
+                                                 size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_last_of(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find_last_of(CharT c, size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_last_of(c, pos);
+  }
+  [[nodiscard]] constexpr size_type find_last_of(CharT const* s, size_type pos, size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find_last_of(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find_last_of(CharT const* s, size_type pos = npos) const {
+    return std::string_view(_impl_data, _impl_size).find_last_of(s, pos);
+  }
   [[nodiscard]] constexpr size_type find_first_not_of(basic_string_view s,
-                                                      size_type pos = 0) const noexcept;
-  [[nodiscard]] constexpr size_type find_first_not_of(CharT c, size_type pos = 0) const noexcept;
+                                                      size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_first_not_of(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find_first_not_of(CharT c, size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_first_not_of(c, pos);
+  }
   [[nodiscard]] constexpr size_type find_first_not_of(CharT const* s,
                                                       size_type pos,
-                                                      size_type n) const;
-  [[nodiscard]] constexpr size_type find_first_not_of(CharT const* s, size_type pos = 0) const;
+                                                      size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find_first_not_of(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find_first_not_of(CharT const* s, size_type pos = 0) const {
+    return std::string_view(_impl_data, _impl_size).find_first_not_of(s, pos);
+  }
   [[nodiscard]] constexpr size_type find_last_not_of(basic_string_view s,
-                                                     size_type pos = npos) const noexcept;
-  [[nodiscard]] constexpr size_type find_last_not_of(CharT c, size_type pos = npos) const noexcept;
+                                                     size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_last_of(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find_last_not_of(CharT c, size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_last_not_of(c, pos);
+  }
   [[nodiscard]] constexpr size_type find_last_not_of(CharT const* s,
                                                      size_type pos,
-                                                     size_type n) const;
-  [[nodiscard]] constexpr size_type find_last_not_of(CharT const* s, size_type pos = npos) const;
+                                                     size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find_last_not_of(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find_last_not_of(CharT const* s, size_type pos = npos) const {
+    return std::string_view(_impl_data, _impl_size).find_last_not_of(s, pos);
+  }
 
   const_pointer _impl_data;
   size_type _impl_size;
