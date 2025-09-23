@@ -59,7 +59,9 @@ public:
 
   template <std::size_t Count, typename T>
   constexpr span<typename std::remove_cvref_t<T>::element_type, Count> last(this T&& self) {
-    return span<typename std::remove_cvref_t<T>::element_type, Count>{self.data() + self.size() - Count, Count};
+    return span<typename std::remove_cvref_t<T>::element_type, Count>{
+        self.data() + self.size() - Count,
+        Count};
   }
 
   template <typename T>
@@ -252,10 +254,14 @@ public:
   constexpr pointer data() const { return _impl_data; }
   [[nodiscard]] constexpr std::size_t size() const { return Extent; }
 
-  template <typename T, std::size_t Offset, std::size_t Count = dynamic_extent>
+  using _span_impl::span_common::subspan;
+
+  template <std::size_t Offset, std::size_t Count = dynamic_extent>
   constexpr span<element_type, Count != dynamic_extent ? Count : Extent - Offset> subspan()
       const noexcept {
-    return {data() + Offset, Count == dynamic_extent ? size() - Offset : Count};
+    return span<element_type, Count != dynamic_extent ? Count : Extent - Offset>{
+        data() + Offset,
+        Count == dynamic_extent ? size() - Offset : Count};
   }
 
   //! non-standard extension: these members are public to make `span` a structural type
@@ -350,9 +356,11 @@ public:
   constexpr pointer data() const noexcept { return _impl_data; }
   [[nodiscard]] constexpr std::size_t size() const noexcept { return _impl_size; }
 
+  using _span_impl::span_common::subspan;
+
   template <std::size_t Offset, std::size_t Count = dynamic_extent>
   constexpr span<element_type, Count> subspan() const noexcept {
-    return {data() + Offset, Count == dynamic_extent ? size() - Offset : Count};
+    return span<element_type, Count>{data() + Offset, Count == dynamic_extent ? size() - Offset : Count};
   }
 
   //! non-standard extension: these members are public to make `span` a structural type
