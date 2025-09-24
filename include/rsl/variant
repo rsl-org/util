@@ -730,7 +730,8 @@ constexpr decltype(auto) get(V&& variant_) {
 
 template <typename T, _variant_impl::has_get V>
 constexpr decltype(auto) get(V&& variant_) {
-  return rsl::get<T>(std::forward<V>(variant_));
+  constexpr static std::size_t index = variant_.alternatives.get_index_of(^^T);
+  return rsl::get<index>(std::forward<V>(variant_));
 }
 
 template <std::size_t Idx, typename Storage>
