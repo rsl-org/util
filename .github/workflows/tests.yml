@@ -14,7 +14,12 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v5
-
+    
+    - name: Copy conan profile
+      run: |
+        mkdir -p /github/home/.conan2/profiles
+        sudo cp /root/.conan2/profiles/default /github/home/.conan2/profiles/default
+    
     - name: Build project
       run: conan build . --build=missing -s build_type=Debug -o tests=True
 
