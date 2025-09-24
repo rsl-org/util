@@ -6,7 +6,7 @@
 #include <string>
 #include <functional>
 
-#include <rsl/intseq>
+#include <rsl/utility>
 #include <rsl/meta_traits>
 
 #include <rsl/_impl/concepts.hpp>

@@ -4,10 +4,14 @@
 #include <ranges>
 #include <type_traits>
 
-// reimplements index_sequence (see https://standards.pydong.org/c++/intseq) reflectively
-// with the addition of P1789 structured binding support
-
 namespace rsl {
+consteval std::meta::info current_scope(
+    std::meta::info ctx = std::meta::access_context::current().scope()) {
+  return ctx;
+}
+
+template <std::size_t N>
+constexpr static auto&& seq = [:std::meta::reflect_constant_array(std::views::iota(0ZU, N)):];
 
 template <typename T, T... Is>
 struct integer_sequence {
@@ -41,17 +45,15 @@ using make_index_sequence = make_integer_sequence<std::size_t, N>;
 template <typename... T>
 using index_sequence_for = make_index_sequence<sizeof...(T)>;
 
+// P1789 addition
 template <std::size_t Idx, typename T, T... Is>
   requires(Idx < sizeof...(Is))
 constexpr T get(integer_sequence<T, Is...>) noexcept {
   return Is...[Idx];
 }
-
-//! non-standard utility
-template <std::size_t N>
-constexpr static auto&& seq = [:std::meta::reflect_constant_array(std::views::iota(0zu, N)):];
 }  // namespace rsl
 
+// P1789
 template <typename T, T... Is>
 struct std::tuple_size<rsl::integer_sequence<T, Is...>>
     : std::integral_constant<std::size_t, sizeof...(Is)> {};
