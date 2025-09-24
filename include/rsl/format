@@ -1,0 +1,32 @@
+#pragma once
+#include "_format_impl/fmt_parser.hpp"
+#include "_format_impl/style.hpp"
+
+namespace rsl {
+namespace _format_impl {
+  template <typename... Args>
+struct Fmt {
+  FormatString::format_type<Args...> do_format;
+
+  template <typename T>
+    requires std::convertible_to<T const&, std::string_view>
+  consteval Fmt(T const& fmt) {
+    auto parser = FormatParser(fmt);
+    parser.do_parse({^^Args...});
+    do_format = parser.result.get_format<Args...>();
+  }
+};
+}
+
+using style_map = _format_impl::StyleMap;
+
+using format_result = _format_impl::FormatResult;
+
+template <typename... Args>
+using format_string = _format_impl::Fmt<std::type_identity_t<Args>...>;
+
+template <typename... Args>
+format_result format(format_string<Args...> fmt, Args&&... args) {
+  return fmt.do_format(std::forward<Args>(args)...);
+}
+}

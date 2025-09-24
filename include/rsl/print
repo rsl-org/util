@@ -1,0 +1,41 @@
+#pragma once
+#include <cstdio>
+
+#include <rsl/format>
+#include <rsl/style/terminal.hpp>
+
+#ifdef __unix__
+#include <unistd.h>
+#elif defined(_WIN32) || defined(WIN32) 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+#ifndef STDIN_FILENO
+  #define STDIN_FILENO _fileno(stdin)
+  #define STDOUT_FILENO _fileno(stdout)
+  #define STDERR_FILENO _fileno(stderr)
+ #endif
+#else
+#error "Unsupported platform"
+#endif
+
+namespace rsl {
+bool isatty(int fd) {
+#if IS_WINDOWS
+  return bool(_isatty(fd));
+#else
+  return bool(::isatty(fd));
+#endif
+}
+
+template <typename... Args>
+void println(rsl::format_string<Args...> fmt, Args&&... args) {
+  auto result = rsl::format(fmt, std::forward<Args>(args)...);
+  if (rsl::isatty(STDOUT_FILENO)) {
+    auto colorized = result.with_style(style::Terminal());
+    std::puts(colorized.c_str());
+  } else {
+    std::puts(result.unstyled().c_str());
+  }
+}
+}
