@@ -13,6 +13,11 @@
 
 namespace rsl::serializer {
 
+struct BinaryOptions {
+  bool use_varint = false;
+};
+
+
 class Binary {
   stream::OutputStream* stream;
   
@@ -26,6 +31,11 @@ public:
 
   template <typename T>
   constexpr void operator()(Unsupported, T&& value) {
+    status = stream::IOStatus::unsupported;
+  }
+
+  template <typename T>
+  constexpr void operator()(Meta<T> meta, T&& value) {
     status = stream::IOStatus::unsupported;
   }
 
