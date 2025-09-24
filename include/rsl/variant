@@ -772,8 +772,8 @@ consteval std::meta::info make_storage() {
   consteval {
     std::size_t idx = 0;
     define_aggregate(^^Storage,
-                     {data_member_spec(^^char),
-                    data_member_spec(^^Ts)...
+                     {data_member_spec(^^char, {.name="_rsl_dummy"}),
+                    data_member_spec(^^Ts, {.name= "_rsl_alt" + util::to_string(idx++)})...
                     });
   };
   return ^^Storage;

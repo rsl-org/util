@@ -7,6 +7,7 @@
 
 #include <rsl/_impl/index_of.hpp>
 #include <rsl/_impl/member_cache.hpp>
+#include <rsl/util/to_string.hpp>
 
 #ifndef RSL_STD_COMPAT
 #  define RSL_STD_COMPAT 1
@@ -149,7 +150,11 @@ constexpr bool enable_utypes_tuple_ctor<> = false;
 public:
   struct Storage;
 
-  consteval { define_aggregate(^^Storage, {data_member_spec(^^Types)...}); };
+  consteval { 
+    std::size_t idx = 0;
+    define_aggregate(^^Storage, {
+      data_member_spec(^^Types, {.name="_rsl_elt" + util::to_string(idx++)})...}); 
+  };
 
   Storage _impl_storage;
   static constexpr auto _impl_accessor = [:_impl::cache_members(nonstatic_data_members_of(

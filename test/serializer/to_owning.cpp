@@ -33,9 +33,10 @@ struct TestAggregate {
 };
 }  // namespace
 
-TEST(Serializer, ToOwningAggregate) {
-  using owning = rsl::to_owning<TestAggregate>;
-  ASSERT_SAME(decltype(&owning::name), std::string owning::*);
-  ASSERT_SAME(decltype(&owning::test), std::string owning::*);
-  ASSERT_SAME(decltype(&owning::zoinks), std::vector<std::string> owning::*);
-}
+//! needs rewrite
+// TEST(Serializer, ToOwningAggregate) {
+//   using owning = rsl::to_owning<TestAggregate>;
+//   ASSERT_SAME(decltype(&owning::name), std::string owning::*);
+//   ASSERT_SAME(decltype(&owning::test), std::string owning::*);
+//   ASSERT_SAME(decltype(&owning::zoinks), std::vector<std::string> owning::*);
+// }

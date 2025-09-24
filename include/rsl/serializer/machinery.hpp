@@ -61,6 +61,8 @@ struct Meta<T> {
       define_static_array(nonstatic_data_members_of(info, std::meta::access_context::current()));
   using type = T;
   using owning_type = T;
+  
+  //! needs rewrite
   // struct owning_type;
   // consteval {
   //   std::vector<std::meta::info> adjusted_members;
