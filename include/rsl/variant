@@ -410,6 +410,17 @@ public:
     return *this;
   }
 
+  // converting assignment
+  template <typename T>
+    requires(!std::same_as<std::remove_cvref_t<T>, variant_base> &&
+             !_variant_impl::is_in_place<std::remove_cvref_t<T>> &&
+             selected_index<T> != variant_npos)
+  constexpr variant_base& operator=(T&& obj) noexcept(
+      is_nothrow_constructible_type(alternatives.types[selected_index<T>], {^^T})) {
+    emplace<selected_index<T>>(std::forward<T>(obj));
+    return *this;
+  }
+
   constexpr ~variant_base()
     requires std::is_trivially_destructible_v<Storage>
   = default;
@@ -795,8 +806,9 @@ class variant
 
 public:
   using _variant_impl::variant_base<storage_type>::variant_base;
-  constexpr variant(variant const&)            = default;
-  constexpr variant(variant&&)                 = default;
+  constexpr variant(variant const&) = default;
+  constexpr variant(variant&&)      = default;
+  using _variant_impl::variant_base<storage_type>::variant_base::operator=;
   constexpr variant& operator=(variant const&) = default;
   constexpr variant& operator=(variant&&)      = default;
   constexpr ~variant()                         = default;
