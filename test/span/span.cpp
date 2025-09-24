@@ -17,29 +17,6 @@ TEST(span, construct) {
 
   constexpr rsl::span spanOfInfo(objects);
   constexpr rsl::span<const std::meta::info, 3> spanOfInfoSized(objects.data(), 3);
-
-  /* does not compile yet
-  {
-    auto subspan         = span.subspan<2>();
-    auto subspanWithSize = span.subspan<1, 2>();
-  }
-  {
-    auto subspan         = spanSized.subspan<2>();
-    auto subspanWithSize = spanSized.subspan<1, 2>();
-  }
-  {
-    auto subspan         = spanFromArray.subspan<2>();
-    auto subspanWithSize = spanFromArray.subspan<1, 2>();
-  }
-  {
-    auto subspan         = spanSizedFromArray.subspan<2>();
-    auto subspanWithSize = spanSizedFromArray.subspan<1, 2>();
-  }
-  consteval {
-      auto subspan         = spanOfInfo.subspan<2>();
-      auto subspanWithSize = spanOfInfo.subspan<1, 2>();
-  };
-   */
 }
 
 TEST(span, Empty) {
@@ -86,7 +63,7 @@ constexpr void testSpanAt(auto&& anySpan, int index, auto expectedValue) {
   }
 }
 
-TEST(span, at) {
+TEST(span, At) {
   // With static extent
   {
     std::array arr{0, 1, 2, 3, 4, 5, 9084};
@@ -248,5 +225,84 @@ TEST(span, last) {
         define_static_array(members_of(^^::, std::meta::access_context::current()));
     constexpr auto spanOfInfo = rsl::span{members};
     static_assert(spanOfInfo.last<3>().size() == 3);
+  }
+}
+
+TEST(span, subspan) {
+  // With static extent
+  {
+    std::array arr{0, 1, 2, 3, 4, 5, 9084};
+    rsl::span arrSpan{arr};
+    auto const subspanRuntime = arrSpan.subspan(3);
+    ASSERT_EQ(subspanRuntime.size(), arr.size() - 3);
+    ASSERT_EQ(subspanRuntime[2], arr[5]);
+
+    auto subspanWithSize = arrSpan.subspan<1, 2>();
+    ASSERT_EQ(subspanWithSize.size(), 2);
+    ASSERT_EQ(subspanWithSize[1], arr[2]);
+
+    auto subspan = arrSpan.subspan<1>();
+    ASSERT_EQ(subspan.size(), arrSpan.size() - 1);
+    ASSERT_EQ(subspan[1], arr[2]);
+  }
+
+  // With dynamic extent
+  {
+    std::vector vec{0, 1, 2, 3, 4, 5, 9084};
+    rsl::span vecSpan{vec};
+
+    auto const subspanRuntime = vecSpan.subspan(3);
+    ASSERT_EQ(subspanRuntime.size(), vec.size() - 3);
+    ASSERT_EQ(subspanRuntime[2], vec[5]);
+
+    auto subspanWithSize = vecSpan.subspan<1, 2>();
+    ASSERT_EQ(subspanWithSize.size(), 2);
+    ASSERT_EQ(subspanWithSize[1], vec[2]);
+
+    auto subspan = vecSpan.subspan<1>();
+    ASSERT_EQ(subspan.size(), vecSpan.size() - 1);
+    ASSERT_EQ(subspan[1], vec[2]);
+  }
+
+  {
+    constexpr auto members =
+        define_static_array(members_of(^^::, std::meta::access_context::current()));
+    constexpr auto spanOfInfo = rsl::span{members};
+
+    constexpr auto subspanWithSize = spanOfInfo.subspan<1, 2>();
+    static_assert(subspanWithSize.size() == 2);
+    static_assert(subspanWithSize[1] == members[2]);
+
+    constexpr auto subspan = spanOfInfo.subspan<1>();
+    static_assert(subspan.size() == members.size() - 1);
+    static_assert(subspan[1] == members[2]);
+  }
+}
+
+template <rsl::span spanArgument>
+  requires std::same_as<typename decltype(spanArgument)::element_type, const int>
+void check() {
+  static_assert(spanArgument.size() == 3);
+  static_assert(spanArgument[0] == 1);
+  static_assert(spanArgument[1] == 2);
+  static_assert(spanArgument[2] == 3);
+}
+
+template <rsl::span spanArgument>
+void check() {
+  static_assert(spanArgument.size() == 3);
+}
+
+TEST(span, asTemplateArgument) {
+  {
+    constexpr rsl::span<const int> arrSpan{std::define_static_array(std::array{1, 2, 3})};
+    check<arrSpan>();
+  }
+
+  {
+    constexpr auto members =
+        define_static_array(members_of(^^::, std::meta::access_context::current()));
+    constexpr auto spanOfInfo = rsl::span{members};
+    check<spanOfInfo.subspan<1, 3>()>();
   }
 }
