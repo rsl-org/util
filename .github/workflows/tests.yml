@@ -1,0 +1,22 @@
+name: Run tests
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/rsl-org/fedora_devcontainer:latest
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+
+    - name: Build project
+      run: conan build . --build=missing -s build_type=Debug -o tests=True
+
+    - name: Run tests
+      run: ./build/Debug/rsl-util-test
