@@ -4,12 +4,33 @@
 
 #include <common/assertions.h>
 
+const rsl::string_view& get_const_ref_string_view() {
+  static rsl::string_view sv("foo");
+  return sv;
+}
+
 TEST(Assign, NonConverting) {
   {
     rsl::variant<int, float> v(43);
     v = 42;
     ASSERT_EQ(v.index(), 0);
+    ASSERT_SAME(decltype(rsl::get<0>(v)), int&);
     ASSERT_EQ(rsl::get<0>(v), 42);
+  }
+  {
+    rsl::variant<int, float> v(43);
+    const int i = 42;
+    v           = i;
+    ASSERT_EQ(v.index(), 0);
+    ASSERT_SAME(decltype(rsl::get<0>(v)), int&);
+    ASSERT_EQ(rsl::get<0>(v), 42);
+  }
+  {
+    rsl::variant<rsl::string_view, float> v(43.0f);
+    v = get_const_ref_string_view();
+    ASSERT_SAME(decltype(rsl::get<0>(v)), rsl::string_view&);
+    ASSERT_EQ(v.index(), 0);
+    ASSERT_EQ(rsl::get<0>(v), rsl::string_view{"foo"});
   }
   {
     rsl::variant<int, float> v(4.3f);
