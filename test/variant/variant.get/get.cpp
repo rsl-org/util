@@ -93,12 +93,20 @@ TEST(Get, TypeLvalue) {
     variant v(42);
     ASSERT_NOT_NOEXCEPT(rsl::get<int>(v));
     ASSERT_SAME(decltype(rsl::get<int>(v)), int&);
+    ASSERT_SAME(decltype(rsl::get<int&>(v)), int&);
+    ASSERT_SAME(decltype(rsl::get<const int&>(v)), int&);
+    ASSERT_SAME(decltype(rsl::get<int&&>(v)), int&);
     ASSERT_EQ(rsl::get<int>(v), 42);
+    ASSERT_EQ(rsl::get<int&>(v), 42);
+    ASSERT_EQ(rsl::get<const int&>(v), 42);
+    ASSERT_EQ(rsl::get<int&&>(v), 42);
   }
   {
     variant v(42l);
     ASSERT_SAME(decltype(rsl::get<long>(v)), long&);
+    ASSERT_SAME(decltype(rsl::get<const long&>(v)), long&);
     ASSERT_EQ(rsl::get<long>(v), 42);
+    ASSERT_EQ(rsl::get<const long&>(v), 42);
   }
 }
 
@@ -108,7 +116,11 @@ TEST(Get, TypeRvalue) {
     variant v(42);
     ASSERT_NOT_NOEXCEPT(rsl::get<int>(std::move(v)));
     ASSERT_SAME(decltype(rsl::get<int>(std::move(v))), int&&);
+    ASSERT_SAME(decltype(rsl::get<const int&>(std::move(v))), int&&);
+    ASSERT_SAME(decltype(rsl::get<int&&>(std::move(v))), int&&);
     ASSERT_EQ(rsl::get<int>(std::move(v)), 42);
+    ASSERT_EQ(rsl::get<const int&>(std::move(v)), 42);
+    ASSERT_EQ(rsl::get<int&&>(std::move(v)), 42);
   }
   {
     variant v(42l);
@@ -117,13 +129,17 @@ TEST(Get, TypeRvalue) {
   }
 }
 
-TEST(Get, TypeConstLvalue) {
+TEST(Get, TypeConstRvalue) {
   using variant = rsl::variant<int, long>;
   {
     const variant v(42);
     ASSERT_NOT_NOEXCEPT(rsl::get<int>(std::move(v)));
     ASSERT_SAME(decltype(rsl::get<int>(std::move(v))), const int&&);
+    ASSERT_SAME(decltype(rsl::get<const int&>(std::move(v))), const int&&);
+    ASSERT_SAME(decltype(rsl::get<const int&&>(std::move(v))), const int&&);
     ASSERT_EQ(rsl::get<int>(std::move(v)), 42);
+    ASSERT_EQ(rsl::get<const int&>(std::move(v)), 42);
+    ASSERT_EQ(rsl::get<const int&&>(std::move(v)), 42);
   }
   {
     const variant v(42l);
@@ -132,12 +148,15 @@ TEST(Get, TypeConstLvalue) {
   }
 }
 
-TEST(Get, TypeConstRvalue) {
+TEST(Get, TypeConstLvalue) {
   using variant = rsl::variant<int, long>;
   {
     constexpr variant v(42);
     ASSERT_NOT_NOEXCEPT(rsl::get<int>(v));
     ASSERT_SAME(decltype(rsl::get<int>(v)), const int&);
+    ASSERT_SAME(decltype(rsl::get<int&>(v)), const int&);
+    ASSERT_SAME(decltype(rsl::get<const int&>(v)), const int&);
+    ASSERT_SAME(decltype(rsl::get<int&&>(v)), const int&);
     static_assert(rsl::get<int>(v) == 42, "");
   }
   {
