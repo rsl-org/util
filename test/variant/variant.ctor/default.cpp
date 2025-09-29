@@ -25,4 +25,27 @@ TEST(DefaultCtor, Constructible) {
 TEST(DefaultCtor, Noexcept) {
   ASSERT_TRUE((std::is_nothrow_default_constructible_v<rsl::variant<int>>));
   ASSERT_FALSE((std::is_nothrow_default_constructible_v<rsl::variant<NotNoexcept>>));
+
+  {
+    constexpr rsl::variant<int> v(42);
+    ASSERT_TRUE((v.index() == 0));
+    ASSERT_EQ(rsl::get<0>(v), 42);
+  }
+  {
+    constexpr rsl::variant<int, float> v(42);
+    ASSERT_TRUE((v.index() == 0));
+    ASSERT_EQ(rsl::get<0>(v), 42);
+  }
+  {
+    constexpr rsl::variant<const int, float> v(42);
+    ASSERT_TRUE((v.index() == 0));
+    ASSERT_EQ(rsl::get<0>(v), 42);
+  }
+  {
+    using V = rsl::variant<volatile int, float>;
+    int x   = 42;
+    V v(x);
+    ASSERT_TRUE((v.index() == 0));
+    ASSERT_EQ(rsl::get<0>(v), 42);
+  }
 }
