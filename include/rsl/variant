@@ -790,7 +790,7 @@ consteval std::meta::info make_storage() {
     std::size_t idx = 0;
     define_aggregate(^^Storage,
                      {data_member_spec(^^char, {.name="_rsl_dummy"}),
-                    data_member_spec(^^Ts, {.name= "_rsl_alt" + util::to_string(idx++)})...
+                    data_member_spec(remove_cvref(^^Ts), {.name= "_rsl_alt" + util::to_string(idx++)})...
                     });
   };
   return ^^Storage;
