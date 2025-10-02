@@ -259,7 +259,7 @@ protected:
     }
 
     template for (constexpr auto Idx : std::views::iota(0ZU, alternatives.count)) {
-      if constexpr (std::is_nothrow_move_constructible_v<typename [:alternatives.types[Idx]:]>) {
+      if constexpr (std::is_nothrow_move_constructible_v<typename[:alternatives.types[Idx]:]>) {
         return true;
       }
     }
@@ -330,7 +330,8 @@ public:
   // TODO rewrite selected_index
   template <typename T>
   constexpr static auto selected_index =
-      _variant_impl::selected_index<T, typename [:substitute(^^_impl::TypeList, alternatives.types):]>;
+      _variant_impl::selected_index<T,
+                                    typename[:substitute(^^_impl::TypeList, alternatives.types):]>;
 
   // converting constructor
   template <typename T>
@@ -375,7 +376,7 @@ public:
                                   std::initializer_list<U> init_list,
                                   Args&&... args)  //
       noexcept(std::is_nothrow_constructible_v<    //
-               typename [:alternatives.types[Idx]:], std::initializer_list<U>&, Args...>)
+               typename[:alternatives.types[Idx]:], std::initializer_list<U>&, Args...>)
       : discriminator(Idx) {
     // Primary constructor
 
@@ -407,6 +408,19 @@ public:
           [this]<typename T>(T&& obj) { this->template emplace<T>(std::forward<T>(obj)); },
           std::move(other));
     }
+    return *this;
+  }
+
+  // converting assignment
+  template <typename T>
+    requires(!std::same_as<std::remove_cvref_t<T>, variant_base> &&
+             !_variant_impl::is_in_place<std::remove_cvref_t<T>> &&
+             std::assignable_from<typename[:alternatives.types[selected_index<T>]:]&, T> &&
+             selected_index<T> != variant_npos)
+  constexpr variant_base& operator=(T&& obj) noexcept(
+      is_nothrow_constructible_type(alternatives.types[selected_index<T>],
+                                    {std::meta::remove_cvref(^^T)})) {
+    emplace<selected_index<T>>(std::forward<T>(obj));
     return *this;
   }
 
@@ -458,7 +472,8 @@ public:
   template <typename T, typename Self>
   constexpr decltype(auto) get(this Self&& self) {
     // TODO is remove_reference required here?
-    return std::forward<Self>(self).template get<alternatives.get_index_of(remove_reference(^^T))>();
+    return std::forward<Self>(self)
+        .template get<alternatives.get_index_of(remove_reference(^^T))>();
   }
 
   void swap(variant_base& other) {
@@ -730,7 +745,9 @@ constexpr decltype(auto) get(V&& variant_) {
 
 template <typename T, _variant_impl::has_get V>
 constexpr decltype(auto) get(V&& variant_) {
-  return rsl::get<T>(std::forward<V>(variant_));
+  constexpr static std::size_t index =
+      variant_.alternatives.get_index_of(std::meta::remove_cvref(^^T));
+  return rsl::get<index>(std::forward<V>(variant_));
 }
 
 template <std::size_t Idx, typename Storage>
@@ -784,8 +801,7 @@ using Storage = [:make_storage<Ts...>():];
 }  // namespace _impl
 
 template <typename... Ts>
-class variant
-    : public _variant_impl::variant_base<_impl::Storage<Ts...>> {
+class variant : public _variant_impl::variant_base<_impl::Storage<Ts...>> {
   static_assert(sizeof...(Ts) > 0, "variant must contain at least one alternative");
   static_assert((!std::is_reference_v<Ts> && ...), "variant must not have reference alternatives");
   static_assert((!std::is_void_v<Ts> && ...), "variant must not have void alternatives");
@@ -794,8 +810,9 @@ class variant
 
 public:
   using _variant_impl::variant_base<storage_type>::variant_base;
-  constexpr variant(variant const&)            = default;
-  constexpr variant(variant&&)                 = default;
+  constexpr variant(variant const&) = default;
+  constexpr variant(variant&&)      = default;
+  using _variant_impl::variant_base<storage_type>::variant_base::operator=;
   constexpr variant& operator=(variant const&) = default;
   constexpr variant& operator=(variant&&)      = default;
   constexpr ~variant()                         = default;
