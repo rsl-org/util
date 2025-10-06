@@ -3,11 +3,19 @@
 #include <vector>
 #include <ranges>
 #include <type_traits>
+#include <rsl/meta_traits>
 
 namespace rsl {
 consteval std::meta::info current_scope(
     std::meta::info ctx = std::meta::access_context::current().scope()) {
   return ctx;
+}
+
+struct GetterAnnotation {};
+constexpr inline GetterAnnotation getter{};
+
+consteval bool is_getter(std::meta::info R) {
+  return is_function(R) && rsl::meta::has_annotation<GetterAnnotation>(R);
 }
 
 template <std::size_t N>

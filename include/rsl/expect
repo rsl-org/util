@@ -63,11 +63,11 @@ concept is_binary_expr = meta::specializes<T, ^^BinaryExpr>;
 template <typename T>
 concept is_binary_comparison = is_binary_expr<T> && is_comparison(T::op);
 
-template <std::meta::operators OP, typename R, typename L>
+template <std::meta::operators OP, typename L, typename R>
 struct BinaryExpr {
   static constexpr auto op = OP;
-  R rhs;
   L lhs;
+  R rhs;
 
   constexpr auto get_left_most() const {
     if constexpr (meta::specializes<L, ^^BinaryExpr>) {
@@ -165,9 +165,8 @@ struct BinaryExpr {
     }
   }
 
-  template <typename T2, typename T1>
-  static constexpr decltype(auto) eval_operator(T1&& rhs, T2&& lhs) {
-    // TODO args are flipped - why?
+  template <typename T1, typename T2>
+  static constexpr decltype(auto) eval_operator(T1&& lhs, T2&& rhs) {
     using enum std::meta::operators;
     /* */ if constexpr (OP == op_plus) {
       return std::forward<T1>(lhs) + std::forward<T2>(rhs);
@@ -262,31 +261,28 @@ template <typename T>
 constexpr inline auto non_special_members =
     define_static_array(members_of(^^T, std::meta::access_context::current()) |
                         std::views::filter([](std::meta::info R) {
-                          return (is_function(R) or is_nonstatic_data_member(R)) and
-                                 not is_special_member_function(R);
+                          return has_identifier(R) && (is_nonstatic_data_member(R) || is_getter(R));
                         }));
 
 template <std::size_t Idx, typename T>
 decltype(auto) operator->*(T&& obj, value<Idx>) {
-  static constexpr auto member = non_special_members<std::remove_cvref_t<T>>[Idx];
-  // if constexpr (is_function(member)) {
-  //   // TODO check for getter annotation
-  //   if constexpr (is_static_member(member)) {
-  //     return [:member:];
-  //   } else {
-  //     return [&]<typename... Ts>(Ts&&... args) {
-  //       return std::forward<T>(obj).[:member:](std::forward<Ts>(args)...);
-  //     };
-  //   }
-  // } else 
-  if constexpr (is_nonstatic_data_member(member)) {
-    return std::forward<T>(obj).[:member:];
-  } else if constexpr (requires {
-                         { get<Idx>(std::forward<T>(obj)) };
-                       }) {
+  if constexpr (requires {
+                  { get<Idx>(std::forward<T>(obj)) };
+                }) {
     return get<Idx>(std::forward<T>(obj));
   } else {
-    static_assert(false, std::string("Cannot get member") + util::utos(Idx));
+    static constexpr auto member = non_special_members<std::remove_cvref_t<T>>[Idx];
+    if constexpr (is_nonstatic_data_member(member)) {
+      return std::forward<T>(obj).[:member:];
+    } else if constexpr (is_function(member)) {
+      if constexpr (is_static_member(member)) {
+        return [:member:]();
+      } else {
+        return std::forward<T>(obj).[:member:]();
+      }
+    } else {
+      static_assert(false, std::string("Cannot get member") + util::utos(Idx));
+    }
   }
 }
 }  // namespace _impl
@@ -330,6 +326,8 @@ struct PlaceholderFor {
   consteval {
     std::vector<std::meta::info> members;
     auto idx = 0;
+    std::vector<std::string_view> names;
+
     for (auto member : _impl::non_special_members<std::remove_cvref_t<T>>) {
       std::meta::info type;
       if (is_class_type(remove_cvref(type_of(member)))) {
@@ -343,7 +341,13 @@ struct PlaceholderFor {
                           {std::meta::reflect_constant(I)..., std::meta::reflect_constant(idx++)});
       }
 
-      members.push_back(data_member_spec(type, {.name = identifier_of(member)}));
+      auto name = identifier_of(member);
+      if (std::find(names.begin(), names.end(), name) == names.end()) {
+        // skip repeated names (ie overload sets)
+        // TODO
+        members.push_back(data_member_spec(type, {.name = name}));
+        names.push_back(name);
+      }
     }
     define_aggregate(^^Lazy, members);
   }
@@ -475,7 +479,7 @@ struct Expect : T {
   }
 
   template <typename... Args>
-  constexpr bool operator()(Args&&... args) const {
+  constexpr decltype(auto) operator()(Args&&... args) const {
     return this->eval(std::tuple(std::forward<Args>(args)...));
   }
 
@@ -506,10 +510,9 @@ constexpr inline struct {
   }
 
 namespace rsl {
-// using rsl::_expect_impl::expect;
 using rsl::_expect_impl::Placeholder;
 template <typename T, std::size_t Idx>
-using TypedPlaceholder = _expect_impl::PlaceholderFor<T, Idx>;
+using TypedPlaceholder = ::rsl::_expect_impl::PlaceholderFor<T, Idx>;
 
 namespace typed_placeholders {
 template <typename T>
