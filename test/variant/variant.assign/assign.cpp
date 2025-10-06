@@ -52,7 +52,7 @@ TEST(Assign, NonConverting) {
   {
     rsl::variant<rsl::string_view, int> v(3);
     v = "bar";
-    assert(v.index() == 0);
-    assert(rsl::get<0>(v) == "bar");
+    ASSERT_EQ(v.index() , 0);
+    ASSERT_EQ(rsl::get<0>(v) , "bar");
   }
 }

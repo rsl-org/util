@@ -66,12 +66,12 @@ TEST(Get, IndexConstRvalue) {
     const variant v(42);
     ASSERT_NOT_NOEXCEPT(rsl::get<0>(std::move(v)));
     ASSERT_SAME(decltype(rsl::get<0>(std::move(v))), const int&&);
-    assert(rsl::get<0>(std::move(v)) == 42);
+    ASSERT_EQ(rsl::get<0>(std::move(v)), 42);
   }
   {
     const variant v(42l);
     ASSERT_SAME(decltype(rsl::get<1>(std::move(v))), const long&&);
-    assert(rsl::get<1>(std::move(v)) == 42);
+    ASSERT_EQ(rsl::get<1>(std::move(v)), 42);
   }
 }
 

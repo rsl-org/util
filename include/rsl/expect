@@ -85,36 +85,39 @@ struct BinaryExpr {
     }
   }
 
-  constexpr decltype(auto) eval(auto const& args) const {
+  template <typename T>
+  constexpr decltype(auto) eval(T&& args) const {
     auto descend = [&](auto&& obj) {
       constexpr auto evaluatable = requires {
-        { obj.eval(args) } -> _impl::is_non_void;
+        { obj.eval(std::forward<T>(args)) } -> _impl::is_non_void;
       };
 
       if constexpr (evaluatable) {
-        return obj.eval(args);
+        return obj.eval(std::forward<T>(args));
       } else {
         return obj;
       }
     };
 
-    return eval_operator(descend(rhs), descend(lhs));
+    return eval_operator(descend(std::forward_like<T>(lhs)), descend(std::forward_like<T>(rhs)));
   }
 
-  constexpr auto eval_verbose(auto const& args, std::vector<std::string>& failed_terms) const {
+  template <typename T>
+  constexpr auto eval_verbose(T&& args, std::vector<std::string>& failed_terms) const {
     auto descend = [&](auto&& obj) {
       constexpr auto evaluatable = requires {
-        { obj.eval_verbose(args, failed_terms) } -> _impl::is_non_void;
+        { obj.eval_verbose(std::forward<T>(args), failed_terms) } -> _impl::is_non_void;
       };
 
       if constexpr (evaluatable) {
-        return obj.eval_verbose(args, failed_terms);
+        return obj.eval_verbose(std::forward<T>(args), failed_terms);
       } else {
         return obj;
       }
     };
 
-    auto result = eval_operator(descend(rhs), descend(lhs));
+    auto result =
+        eval_operator(descend(std::forward_like<T>(lhs)), descend(std::forward_like<T>(rhs)));
     if (!result) {
       failed_terms.push_back(to_string(args));
     }
@@ -162,70 +165,72 @@ struct BinaryExpr {
     }
   }
 
-  static constexpr decltype(auto) eval_operator(auto lhs, auto rhs) {
+  template <typename T2, typename T1>
+  static constexpr decltype(auto) eval_operator(T1&& rhs, T2&& lhs) {
+    // TODO args are flipped - why?
     using enum std::meta::operators;
     /* */ if constexpr (OP == op_plus) {
-      return lhs + rhs;
+      return std::forward<T1>(lhs) + std::forward<T2>(rhs);
     } else if constexpr (OP == op_minus) {
-      return lhs - rhs;
+      return std::forward<T1>(lhs) - std::forward<T2>(rhs);
     } else if constexpr (OP == op_star) {
-      return lhs * rhs;
+      return std::forward<T1>(lhs) * std::forward<T2>(rhs);
     } else if constexpr (OP == op_slash) {
-      return lhs / rhs;
+      return std::forward<T1>(lhs) / std::forward<T2>(rhs);
     } else if constexpr (OP == op_percent) {
-      return lhs % rhs;
+      return std::forward<T1>(lhs) % std::forward<T2>(rhs);
     } else if constexpr (OP == op_caret) {
-      return lhs ^ rhs;
+      return std::forward<T1>(lhs) ^ std::forward<T2>(rhs);
     } else if constexpr (OP == op_ampersand) {
-      return lhs & rhs;
+      return std::forward<T1>(lhs) & std::forward<T2>(rhs);
     } else if constexpr (OP == op_pipe) {
-      return lhs | rhs;
+      return std::forward<T1>(lhs) | std::forward<T2>(rhs);
     } else if constexpr (OP == op_equals) {
-      return lhs = rhs;
+      return std::forward<T1>(lhs) = std::forward<T2>(rhs);
     } else if constexpr (OP == op_plus_equals) {
-      return lhs += rhs;
+      return std::forward<T1>(lhs) += std::forward<T2>(rhs);
     } else if constexpr (OP == op_minus_equals) {
-      return lhs -= rhs;
+      return std::forward<T1>(lhs) -= std::forward<T2>(rhs);
     } else if constexpr (OP == op_star_equals) {
-      return lhs *= rhs;
+      return std::forward<T1>(lhs) *= std::forward<T2>(rhs);
     } else if constexpr (OP == op_slash_equals) {
-      return lhs /= rhs;
+      return std::forward<T1>(lhs) /= std::forward<T2>(rhs);
     } else if constexpr (OP == op_percent_equals) {
-      return lhs %= rhs;
+      return std::forward<T1>(lhs) %= std::forward<T2>(rhs);
     } else if constexpr (OP == op_caret_equals) {
-      return lhs ^= rhs;
+      return std::forward<T1>(lhs) ^= std::forward<T2>(rhs);
     } else if constexpr (OP == op_ampersand_equals) {
-      return lhs &= rhs;
+      return std::forward<T1>(lhs) &= std::forward<T2>(rhs);
     } else if constexpr (OP == op_pipe_equals) {
-      return lhs |= rhs;
+      return std::forward<T1>(lhs) |= std::forward<T2>(rhs);
     } else if constexpr (OP == op_equals_equals) {
-      return lhs == rhs;
+      return std::forward<T1>(lhs) == std::forward<T2>(rhs);
     } else if constexpr (OP == op_exclamation_equals) {
-      return lhs != rhs;
+      return std::forward<T1>(lhs) != std::forward<T2>(rhs);
     } else if constexpr (OP == op_less) {
-      return lhs < rhs;
+      return std::forward<T1>(lhs) < std::forward<T2>(rhs);
     } else if constexpr (OP == op_greater) {
-      return lhs > rhs;
+      return std::forward<T1>(lhs) > std::forward<T2>(rhs);
     } else if constexpr (OP == op_less_equals) {
-      return lhs <= rhs;
+      return std::forward<T1>(lhs) <= std::forward<T2>(rhs);
     } else if constexpr (OP == op_greater_equals) {
-      return lhs >= rhs;
+      return std::forward<T1>(lhs) >= std::forward<T2>(rhs);
     } else if constexpr (OP == op_spaceship) {
-      return lhs <=> rhs;
+      return std::forward<T1>(lhs) <=> std::forward<T2>(rhs);
     } else if constexpr (OP == op_ampersand_ampersand) {
-      return lhs && rhs;
+      return std::forward<T1>(lhs) && std::forward<T2>(rhs);
     } else if constexpr (OP == op_pipe_pipe) {
-      return lhs || rhs;
+      return std::forward<T1>(lhs) || std::forward<T2>(rhs);
     } else if constexpr (OP == op_less_less) {
-      return lhs << rhs;
+      return std::forward<T1>(lhs) << std::forward<T2>(rhs);
     } else if constexpr (OP == op_greater_greater) {
-      return lhs >> rhs;
+      return std::forward<T1>(lhs) >> std::forward<T2>(rhs);
     } else if constexpr (OP == op_less_less_equals) {
-      return lhs <<= rhs;
+      return std::forward<T1>(lhs) <<= std::forward<T2>(rhs);
     } else if constexpr (OP == op_greater_greater_equals) {
-      return lhs >>= rhs;
+      return std::forward<T1>(lhs) >>= std::forward<T2>(rhs);
     } else if constexpr (OP == op_comma) {
-      return lhs, rhs;
+      return std::forward<T1>(lhs), std::forward<T2>(rhs);
     }
   }
 
@@ -249,28 +254,101 @@ struct BinaryExpr {
   }
 };
 
-template <std::size_t Idx>
+namespace _impl {
+template <auto V>
+struct value {};
+
+template <typename T>
+constexpr inline auto non_special_members =
+    define_static_array(members_of(^^T, std::meta::access_context::current()) |
+                        std::views::filter([](std::meta::info R) {
+                          return (is_function(R) or is_nonstatic_data_member(R)) and
+                                 not is_special_member_function(R);
+                        }));
+
+template <std::size_t Idx, typename T>
+decltype(auto) operator->*(T&& obj, value<Idx>) {
+  static constexpr auto member = non_special_members<std::remove_cvref_t<T>>[Idx];
+  // if constexpr (is_function(member)) {
+  //   // TODO check for getter annotation
+  //   if constexpr (is_static_member(member)) {
+  //     return [:member:];
+  //   } else {
+  //     return [&]<typename... Ts>(Ts&&... args) {
+  //       return std::forward<T>(obj).[:member:](std::forward<Ts>(args)...);
+  //     };
+  //   }
+  // } else 
+  if constexpr (is_nonstatic_data_member(member)) {
+    return std::forward<T>(obj).[:member:];
+  } else if constexpr (requires {
+                         { get<Idx>(std::forward<T>(obj)) };
+                       }) {
+    return get<Idx>(std::forward<T>(obj));
+  } else {
+    static_assert(false, std::string("Cannot get member") + util::utos(Idx));
+  }
+}
+}  // namespace _impl
+
+template <std::size_t... Idx>
 struct Placeholder {
-  constexpr decltype(auto) eval(auto const& args) const {
-    static constexpr auto placeholder_count =
-        std::tuple_size_v<std::remove_cvref_t<decltype(args)>>;
-    static_assert(Idx < placeholder_count,
-                  std::string("Placeholder $") + util::utos(Idx) + " has no associated value");
-    return get<Idx>(args);
+  template <typename T>
+  constexpr decltype(auto) eval(T&& args) const {
+    return (std::forward<T>(args)->*...->*_impl::value<Idx>{});
   }
 
-  constexpr auto eval_verbose(auto const& args, std::vector<std::string>& failed_terms) const {
-    return eval(args);
+  template <typename T>
+  constexpr auto eval_verbose(T&& args, std::vector<std::string>& failed_terms) const {
+    return eval(std::forward<T>(args));
   }
 
-  constexpr std::string to_string(auto const& args) const {
+  template <typename T>
+  constexpr std::string to_string(T&& args) const {
     // TODO constexpr
-    return std::format("{}", get<Idx>(args));
+    if constexpr (requires {
+                    { std::format("{}", eval(std::forward<T>(args))) };
+                  }) {
+      return std::format("{}", eval(std::forward<T>(args)));
+    }
+    // TODO emit type name
+    return "<obj>";
   }
 
   constexpr std::string to_string(std::vector<std::string_view> const& replacements) const {
-    return std::string(replacements[Idx]);
+    // TODO emit member names
+    return std::string(replacements[Idx...[0]]);
   }
+
+  // TODO wrap call and subscript
+};
+
+template <typename T, std::size_t... I>
+struct PlaceholderFor {
+  struct Lazy;
+
+  consteval {
+    std::vector<std::meta::info> members;
+    auto idx = 0;
+    for (auto member : _impl::non_special_members<std::remove_cvref_t<T>>) {
+      std::meta::info type;
+      if (is_class_type(remove_cvref(type_of(member)))) {
+        type = substitute(^^PlaceholderFor,
+                          {remove_cvref(type_of(member)),
+                           std::meta::reflect_constant(I)...,
+                           std::meta::reflect_constant(idx++)});
+      } else {
+        // TODO does this need special handling for functions?
+        type = substitute(^^Placeholder,
+                          {std::meta::reflect_constant(I)..., std::meta::reflect_constant(idx++)});
+      }
+
+      members.push_back(data_member_spec(type, {.name = identifier_of(member)}));
+    }
+    define_aggregate(^^Lazy, members);
+  }
+
+  Lazy* operator->() const { return nullptr; }
 };
 
 template <typename T>
@@ -430,8 +508,54 @@ constexpr inline struct {
 namespace rsl {
 // using rsl::_expect_impl::expect;
 using rsl::_expect_impl::Placeholder;
+template <typename T, std::size_t Idx>
+using TypedPlaceholder = _expect_impl::PlaceholderFor<T, Idx>;
+
+namespace typed_placeholders {
+template <typename T>
+constexpr inline TypedPlaceholder<T, 0> _0{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 1> _1{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 2> _2{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 3> _3{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 4> _4{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 5> _5{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 6> _6{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 7> _7{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 8> _8{};
+template <typename T>
+constexpr inline TypedPlaceholder<T, 9> _9{};
+}  // namespace typed_placeholders
 
 namespace placeholders {
+template <typename T>
+constexpr inline auto p0 = typed_placeholders::_0<T>;
+template <typename T>
+constexpr inline auto p1 = typed_placeholders::_1<T>;
+template <typename T>
+constexpr inline auto p2 = typed_placeholders::_2<T>;
+template <typename T>
+constexpr inline auto p3 = typed_placeholders::_3<T>;
+template <typename T>
+constexpr inline auto p4 = typed_placeholders::_4<T>;
+template <typename T>
+constexpr inline auto p5 = typed_placeholders::_5<T>;
+template <typename T>
+constexpr inline auto p6 = typed_placeholders::_6<T>;
+template <typename T>
+constexpr inline auto p7 = typed_placeholders::_7<T>;
+template <typename T>
+constexpr inline auto p8 = typed_placeholders::_8<T>;
+template <typename T>
+constexpr inline auto p9 = typed_placeholders::_9<T>;
+
 constexpr inline Placeholder<0> _0{};
 constexpr inline Placeholder<1> _1{};
 constexpr inline Placeholder<2> _2{};
@@ -442,6 +566,5 @@ constexpr inline Placeholder<6> _6{};
 constexpr inline Placeholder<7> _7{};
 constexpr inline Placeholder<8> _8{};
 constexpr inline Placeholder<9> _9{};
-
 }  // namespace placeholders
 }  // namespace rsl
