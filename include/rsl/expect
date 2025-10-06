@@ -333,7 +333,7 @@ struct PlaceholderFor {
     for (auto member : _impl::non_special_members<std::remove_cvref_t<T>>) {
       std::meta::info type;
       if (is_class_type(remove_cvref(type_of(member)))) {
-        type = substitute(^^PlaceholderFor,
+        type = substitute(^^::rsl::_expect_impl::PlaceholderFor,
                           {remove_cvref(type_of(member)),
                            std::meta::reflect_constant(I)...,
                            std::meta::reflect_constant(idx++)});
