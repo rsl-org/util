@@ -419,7 +419,7 @@ public:
              selected_index<T> != variant_npos)
   constexpr variant_base& operator=(T&& obj) noexcept(
       is_nothrow_constructible_type(alternatives.types[selected_index<T>],
-                                    {std::meta::remove_cvref(^^T)})) {
+                                    {remove_cvref(^^T)})) {
     emplace<selected_index<T>>(std::forward<T>(obj));
     return *this;
   }
@@ -746,7 +746,7 @@ constexpr decltype(auto) get(V&& variant_) {
 template <typename T, _variant_impl::has_get V>
 constexpr decltype(auto) get(V&& variant_) {
   constexpr static std::size_t index =
-      variant_.alternatives.get_index_of(std::meta::remove_cvref(^^T));
+      variant_.alternatives.get_index_of(remove_cvref(^^T));
   return rsl::get<index>(std::forward<V>(variant_));
 }
 
