@@ -16,7 +16,21 @@ TEST(Get, IndexLvalue) {
     ASSERT_SAME(decltype(rsl::get<1>(v)), long&);
     ASSERT_EQ(rsl::get<1>(v), 42l);
   }
+
+  using variant_const = rsl::variant<const int, long>;
+  {
+    constexpr variant_const obj(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<0>(obj));
+    ASSERT_SAME(decltype(rsl::get<0>(obj)), const int&);
+    static_assert(rsl::get<0>(obj) == 42, "Value mismatch");
+  }
+  {
+    variant_const v(42l);
+    ASSERT_SAME(decltype(rsl::get<1>(v)), long&);
+    ASSERT_EQ(rsl::get<1>(v), 42l);
+  }
 }
+
 TEST(Get, IndexRvalue) {
   using variant = rsl::variant<int, long>;
   {
@@ -27,6 +41,18 @@ TEST(Get, IndexRvalue) {
   }
   {
     variant v(42l);
+    ASSERT_SAME(decltype(rsl::get<1>(std::move(v))), long&&);
+    ASSERT_EQ(rsl::get<1>(std::move(v)), 42l);
+  }
+  using variant_const = rsl::variant<const int, long>;
+  {
+    variant_const v(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<0>(std::move(v)));
+    ASSERT_SAME(decltype(rsl::get<0>(std::move(v))), int&&);
+    ASSERT_EQ(rsl::get<0>(std::move(v)), 42);
+  }
+  {
+    variant_const v(42l);
     ASSERT_SAME(decltype(rsl::get<1>(std::move(v))), long&&);
     ASSERT_EQ(rsl::get<1>(std::move(v)), 42l);
   }
@@ -58,6 +84,32 @@ TEST(Get, IndexConstLvalue) {
     ASSERT_SAME(decltype(rsl::get<1>(v)), const long&);
     ASSERT_EQ(rsl::get<1>(v), 42);
   }
+
+  using variant_const = rsl::variant<const int, long>;
+  {
+    constexpr variant_const v(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<0>(v));
+    ASSERT_SAME(decltype(rsl::get<0>(v)), const int&);
+    static_assert(rsl::get<0>(v) == 42, "");
+  }
+  {
+    const variant_const v(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<0>(v));
+    ASSERT_SAME(decltype(rsl::get<0>(v)), const int&);
+    ASSERT_EQ(rsl::get<0>(v), 42);
+  }
+  {
+    constexpr variant_const v(42l);
+    ASSERT_NOT_NOEXCEPT(rsl::get<1>(v));
+    ASSERT_SAME(decltype(rsl::get<1>(v)), const long&);
+    static_assert(rsl::get<1>(v) == 42, "");
+  }
+  {
+    const variant_const v(42l);
+    ASSERT_NOT_NOEXCEPT(rsl::get<1>(v));
+    ASSERT_SAME(decltype(rsl::get<1>(v)), const long&);
+    ASSERT_EQ(rsl::get<1>(v), 42);
+  }
 }
 
 TEST(Get, IndexConstRvalue) {
@@ -70,6 +122,19 @@ TEST(Get, IndexConstRvalue) {
   }
   {
     const variant v(42l);
+    ASSERT_SAME(decltype(rsl::get<1>(std::move(v))), const long&&);
+    ASSERT_EQ(rsl::get<1>(std::move(v)), 42);
+  }
+
+  using variant_const = rsl::variant<const int, long>;
+  {
+    const variant_const v(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<0>(std::move(v)));
+    ASSERT_SAME(decltype(rsl::get<0>(std::move(v))), const int&&);
+    ASSERT_EQ(rsl::get<0>(std::move(v)), 42);
+  }
+  {
+    const variant_const v(42l);
     ASSERT_SAME(decltype(rsl::get<1>(std::move(v))), const long&&);
     ASSERT_EQ(rsl::get<1>(std::move(v)), 42);
   }
@@ -103,6 +168,27 @@ TEST(Get, TypeLvalue) {
   }
   {
     variant v(42l);
+    ASSERT_SAME(decltype(rsl::get<long>(v)), long&);
+    ASSERT_SAME(decltype(rsl::get<const long&>(v)), long&);
+    ASSERT_EQ(rsl::get<long>(v), 42);
+    ASSERT_EQ(rsl::get<const long&>(v), 42);
+  }
+
+  using variant_const = rsl::variant<const int, long>;
+  {
+    variant_const v(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<int>(v));
+    ASSERT_SAME(decltype(rsl::get<int>(v)), int&);
+    ASSERT_SAME(decltype(rsl::get<int&>(v)), int&);
+    ASSERT_SAME(decltype(rsl::get<const int&>(v)), int&);
+    ASSERT_SAME(decltype(rsl::get<int&&>(v)), int&);
+    ASSERT_EQ(rsl::get<int>(v), 42);
+    ASSERT_EQ(rsl::get<int&>(v), 42);
+    ASSERT_EQ(rsl::get<const int&>(v), 42);
+    ASSERT_EQ(rsl::get<int&&>(v), 42);
+  }
+  {
+    variant_const v(42l);
     ASSERT_SAME(decltype(rsl::get<long>(v)), long&);
     ASSERT_SAME(decltype(rsl::get<const long&>(v)), long&);
     ASSERT_EQ(rsl::get<long>(v), 42);
@@ -146,6 +232,22 @@ TEST(Get, TypeConstRvalue) {
     ASSERT_SAME(decltype(rsl::get<long>(std::move(v))), const long&&);
     ASSERT_EQ(rsl::get<long>(std::move(v)), 42);
   }
+  using variant_const = rsl::variant<const int, long>;
+  {
+    const variant_const v(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<int>(std::move(v)));
+    ASSERT_SAME(decltype(rsl::get<int>(std::move(v))), const int&&);
+    ASSERT_SAME(decltype(rsl::get<const int&>(std::move(v))), const int&&);
+    ASSERT_SAME(decltype(rsl::get<const int&&>(std::move(v))), const int&&);
+    ASSERT_EQ(rsl::get<int>(std::move(v)), 42);
+    ASSERT_EQ(rsl::get<const int&>(std::move(v)), 42);
+    ASSERT_EQ(rsl::get<const int&&>(std::move(v)), 42);
+  }
+  {
+    const variant_const v(42l);
+    ASSERT_SAME(decltype(rsl::get<long>(std::move(v))), const long&&);
+    ASSERT_EQ(rsl::get<long>(std::move(v)), 42);
+  }
 }
 
 TEST(Get, TypeConstLvalue) {
@@ -173,6 +275,34 @@ TEST(Get, TypeConstLvalue) {
   }
   {
     const variant v(42l);
+    ASSERT_NOT_NOEXCEPT(rsl::get<long>(v));
+    ASSERT_SAME(decltype(rsl::get<long>(v)), const long&);
+    ASSERT_EQ(rsl::get<long>(v), 42);
+  }
+  using variant_const = rsl::variant<const int, long>;
+  {
+    constexpr variant_const v(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<int>(v));
+    ASSERT_SAME(decltype(rsl::get<int>(v)), const int&);
+    ASSERT_SAME(decltype(rsl::get<int&>(v)), const int&);
+    ASSERT_SAME(decltype(rsl::get<const int&>(v)), const int&);
+    ASSERT_SAME(decltype(rsl::get<int&&>(v)), const int&);
+    static_assert(rsl::get<int>(v) == 42, "");
+  }
+  {
+    const variant_const v(42);
+    ASSERT_NOT_NOEXCEPT(rsl::get<int>(v));
+    ASSERT_SAME(decltype(rsl::get<int>(v)), const int&);
+    ASSERT_EQ(rsl::get<int>(v), 42);
+  }
+  {
+    constexpr variant_const v(42l);
+    ASSERT_NOT_NOEXCEPT(rsl::get<long>(v));
+    ASSERT_SAME(decltype(rsl::get<long>(v)), const long&);
+    static_assert(rsl::get<long>(v) == 42, "");
+  }
+  {
+    const variant_const v(42l);
     ASSERT_NOT_NOEXCEPT(rsl::get<long>(v));
     ASSERT_SAME(decltype(rsl::get<long>(v)), const long&);
     ASSERT_EQ(rsl::get<long>(v), 42);
