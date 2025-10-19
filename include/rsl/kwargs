@@ -1,0 +1,244 @@
+#pragma once
+#include <algorithm>
+#include <meta>
+#include <string_view>
+#include <vector>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <ranges>
+#include <cstddef>
+
+#include <rsl/string_constant>
+#include <rsl/_impl/parser.hpp>
+
+namespace rsl {
+
+template <typename Impl>
+struct [[nodiscard]] kwargs_t : Impl {
+  using type = Impl;
+};
+
+template <typename T>
+concept is_kwargs = has_template_arguments(^^T) && template_of(^^T) == ^^kwargs_t;
+
+namespace _kwargs_impl {
+consteval std::meta::info get_nth_member(std::meta::info reflection, std::size_t n) {
+  return nonstatic_data_members_of(reflection, std::meta::access_context::unchecked())[n];
+}
+
+template <typename T>
+consteval std::size_t get_member_index(std::string_view name) {
+  std::vector<std::string_view> names = nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()) |
+                                        std::views::transform(std::meta::identifier_of) |
+                                        std::ranges::to<std::vector>();
+  if (auto it = std::ranges::find(names, name); it != names.end()) {
+    return std::distance(names.begin(), it);
+  }
+  return -1UZ;
+}
+
+template <typename T>
+consteval bool has_member(std::string_view name) {
+  return get_member_index<T>(name) != -1ULL;
+}
+
+template <typename T>
+consteval std::vector<std::string_view> get_member_names() {
+  return nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()) |
+         std::views::transform(std::meta::identifier_of) | std::ranges::to<std::vector>();
+}
+
+template <typename T>
+constexpr inline std::size_t member_count =
+    nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()).size();
+
+namespace impl {
+template <auto... Vs>
+struct Replicator {
+  template <typename F>
+  constexpr decltype(auto) operator>>(F fnc) const {
+    return fnc.template operator()<Vs...>();
+  }
+
+  template <typename F>
+  constexpr void operator>>=(F fnc) const {
+    (fnc.template operator()<Vs>(), ...);
+  }
+};
+
+template <auto... Vs>
+constexpr static Replicator<Vs...> replicator{};
+}  // namespace impl
+
+template <std::ranges::range R>
+consteval auto expand(R const& range) {
+  std::vector<std::meta::info> args;
+  for (auto item : range) {
+    args.push_back(std::meta::reflect_constant(item));
+  }
+  return substitute(^^impl::replicator, args);
+}
+
+consteval auto sequence(unsigned maximum) {
+  return expand(std::ranges::iota_view{0U, maximum});
+}
+
+}  // namespace _kwargs_impl
+
+namespace kwargs {
+struct NameParser : _impl::Parser {
+  std::vector<std::string_view> names;
+
+  constexpr bool parse() {
+    cursor = 0;
+
+    while (is_valid()) {
+      skip_whitespace();
+
+      if (current() == '&') {
+        // might be captured by reference
+        ++cursor;
+        skip_whitespace();
+      }
+
+      if (current() == '.') {
+        // pack captured, reject
+        return false;
+      }
+
+      std::size_t start = cursor;
+
+      // find '=', ',' or whitespace
+      skip_to('=', ',', ' ', '\n', '\r', '\t');
+      if (cursor - start == 0) {
+        // default capture or invalid name
+        return false;
+      }
+
+      auto name = data.substr(start, cursor - start);
+      if (name == "this" || name == "*this") {
+        // this captured, reject
+        return false;
+      }
+      names.emplace_back(name);
+
+      // skip ahead to next capture
+      // if the current character is already ',', this will not move the cursor
+      skip_to(',');
+      ++cursor;
+
+      skip_whitespace();
+    }
+    return true;
+  }
+};
+
+template <string_constant Names, typename... Ts>
+constexpr auto make(Ts&&... values) {
+  struct kwargs_impl;
+  consteval {
+    std::vector<std::meta::info> types{^^Ts...};
+    std::vector<std::meta::info> args;
+
+    auto parser = NameParser{Names};
+
+    // with P3068 parser.parse() could throw to provide better diagnostics at this point
+    if (!parser.parse()) {
+      return;
+    }
+
+    // associate every argument with the corresponding name
+    // retrieved by parsing the capture list
+
+    // std::views::zip_transform could also be used for this
+    for (auto [member, name] : std::views::zip(types, parser.names)) {
+      args.push_back(data_member_spec(member, {.name = name}));
+    }
+    define_aggregate(^^kwargs_impl, args);
+  };
+
+  // ensure injecting the class worked
+  static_assert(is_type(^^kwargs_impl), std::string{"Invalid keyword arguments `"} + Names + "`");
+
+  return kwargs_t<kwargs_impl>{{std::forward<Ts>(values)...}};
+}
+}  // namespace kwargs
+
+template <string_constant Names, typename... Ts>
+constexpr auto make_args(Ts&&... values) {
+  return kwargs::make<Names>(std::forward<Ts>(values)...);
+}
+
+template <typename T>
+consteval bool has_arg(std::string_view name) {
+  if constexpr (is_kwargs<std::remove_cvref_t<T>>) {
+    return _kwargs_impl::has_member<typename std::remove_cvref_t<T>::type>(name);
+  } else {
+    return _kwargs_impl::has_member<T>(name);
+  }
+}
+
+// get
+
+template <std::size_t I, typename T>
+  requires is_kwargs<std::remove_cvref_t<T>>
+constexpr auto get(T&& kwargs) noexcept {
+  using kwarg_tuple = typename std::remove_cvref_t<T>::type;
+  static_assert(_kwargs_impl::member_count<kwarg_tuple> > I);
+
+  return std::forward<T>(kwargs).[:_kwargs_impl::get_nth_member(^^kwarg_tuple, I):];
+}
+
+template <string_constant name, typename T>
+  requires is_kwargs<std::remove_cvref_t<T>>
+constexpr auto get(T&& kwargs) {
+  using kwarg_tuple = typename std::remove_cvref_t<T>::type;
+  static_assert(_kwargs_impl::has_member<kwarg_tuple>(name), "Keyword argument `" + std::string(name) + "` not found.");
+
+  return std::forward<T>(kwargs)
+      .[:_kwargs_impl::get_nth_member(^^kwarg_tuple, _kwargs_impl::get_member_index<kwarg_tuple>(name)):];
+}
+
+// get_or
+template <std::size_t I, typename T, typename R>
+  requires is_kwargs<std::remove_cvref_t<T>>
+constexpr auto get_or(T&& kwargs, R default_) noexcept {
+  using kwarg_tuple = typename std::remove_cvref_t<T>::type;
+  if constexpr (_kwargs_impl::member_count<kwarg_tuple> > I) {
+    return get<I>(std::forward<T>(kwargs));
+  } else {
+    return default_;
+  }
+}
+
+template <string_constant name, typename T, typename R>
+  requires is_kwargs<std::remove_cvref_t<T>>
+constexpr auto get_or(T&& kwargs, R default_) {
+  using kwarg_tuple = typename std::remove_cvref_t<T>::type;
+  if constexpr (_kwargs_impl::member_count<kwarg_tuple> > _kwargs_impl::get_member_index<kwarg_tuple>(name)) {
+    return get<name>(std::forward<T>(kwargs));
+  } else {
+    return default_;
+  }
+}
+}  // namespace rsl
+
+template <typename T>
+struct std::tuple_size<rsl::kwargs_t<T>>
+    : public integral_constant<size_t, rsl::_kwargs_impl::member_count<std::remove_cvref_t<T>>> {};
+
+template <std::size_t I, typename T>
+struct std::tuple_element<I, rsl::kwargs_t<T>> {
+  using type = [:rsl::_kwargs_impl::get_nth_member(^^T, I):];
+};
+
+#define $args(...)                                                                                        \
+  [__VA_ARGS__]<typename T>(this T _impl_this) {                                                              \
+    constexpr static auto _impl_captures =                                                                    \
+        define_static_array(nonstatic_data_members_of(^^T, std::meta::access_context::current()));            \
+    return [:rsl::_kwargs_impl::sequence(_impl_captures.size()):] >> [&]<std::size_t... Idx> {                \
+      return rsl::kwargs::make<#__VA_ARGS__>(                                                                 \
+          std::forward<decltype(_impl_this.[:_impl_captures[Idx]:])>(_impl_this.[:_impl_captures[Idx]:])...); \
+    };                                                                                                        \
+  }()

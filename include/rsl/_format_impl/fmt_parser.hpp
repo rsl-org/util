@@ -10,9 +10,9 @@
 #include <rsl/span>
 
 #include <rsl/util/to_string.hpp>
+#include <rsl/_impl/parser.hpp>
 
 #include "accessor.hpp"
-#include "parser.hpp"
 #include "style.hpp"
 #include "util.hpp"
 
@@ -90,7 +90,7 @@ enum struct ReplacementType : std::uint8_t {
   field     = 4
 };
 
-struct Replacement final : Parser {
+struct Replacement final : _impl::Parser {
   ReplacementType kind = ReplacementType::invalid;
   std::string field;
   std::string specs;
