@@ -98,7 +98,7 @@ struct Replacement final : _impl::Parser {
 
   std::size_t index = -1ZU;
 
-  using Parser::Parser;
+  using _impl::Parser::Parser;
 
   constexpr void add_style(FormatString& out, bool enable) const {
     if (!style_tags.empty()) {
@@ -177,7 +177,7 @@ struct Replacement final : _impl::Parser {
         // error
       }
     } else {
-      kind = std::ranges::all_of(field, is_digit)  //
+      kind = std::ranges::all_of(field, _impl::is_digit)  //
                  ? ReplacementType::indexed
                  : ReplacementType::field;
     }
@@ -188,7 +188,7 @@ struct Replacement final : _impl::Parser {
     for (auto subfield : std::views::split(field, '.')) {
       type = remove_cvref(type);
       std::meta::info accessor{};
-      if (std::ranges::all_of(subfield, is_digit)) {
+      if (std::ranges::all_of(subfield, _impl::is_digit)) {
         index = util::stou(std::string_view{subfield});
         if (is_subscriptable(type)) {
           // member access by subscript operator
@@ -218,7 +218,7 @@ struct Replacement final : _impl::Parser {
   }
 };
 
-struct FormatParser : Parser {
+struct FormatParser : _impl::Parser {
   using Parser::Parser;
 
   FormatString result;
@@ -283,7 +283,7 @@ struct FormatParser : Parser {
         case ReplacementType::field: {
           has_positional = true;
           auto dot_pos   = replacement.field.find('.');
-          if (dot_pos == replacement.field.npos || !is_digit(replacement.field[0])) {
+          if (dot_pos == replacement.field.npos || !_impl::is_digit(replacement.field[0])) {
             if (arg_types.size() != 1) {
               // todo error
               throw "implicit 0. not allowed with more than one arg";

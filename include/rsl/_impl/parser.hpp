@@ -59,9 +59,9 @@ struct Parser {
     while (is_valid()) {
       if (char c = current(); brace_count == 0 && ((c == needles) || ...)) {
         break;
-      } else if (c == '{') {
+      } else if (c == '[' || c == '{' || c == '(') {
         ++brace_count;
-      } else if (c == '}') {
+      } else if (c == ']' || c == '}' || c == ')') {
         --brace_count;
       }
       ++cursor;
