@@ -3,8 +3,7 @@
 #include <algorithm>
 #include <concepts>
 
-//TODO move to _impl, reuse for kwargs?
-namespace rsl::_format_impl {
+namespace rsl::_impl {
 
 constexpr bool is_whitespace(char c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r';
@@ -29,7 +28,7 @@ struct Parser {
   std::string_view data;
   int cursor = 0;
 
-  constexpr Parser(std::string_view data) : data(data) {}
+  explicit constexpr Parser(std::string_view data) : data(data) {}
 
   constexpr bool is_valid() const { return cursor >= 0 && cursor < data.size(); }
   constexpr char current() const { return is_valid() ? data[cursor] : '\0'; }
@@ -60,9 +59,9 @@ struct Parser {
     while (is_valid()) {
       if (char c = current(); brace_count == 0 && ((c == needles) || ...)) {
         break;
-      } else if (c == '{') {
+      } else if (c == '[' || c == '{' || c == '(') {
         ++brace_count;
-      } else if (c == '}') {
+      } else if (c == ']' || c == '}' || c == ')') {
         --brace_count;
       }
       ++cursor;
