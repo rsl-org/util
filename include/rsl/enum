@@ -1,0 +1,166 @@
+#pragma once
+#include <meta>
+#include <ranges>
+#include <type_traits>
+#include <rsl/meta_traits>
+
+namespace rsl {
+inline namespace annotations {
+struct FlagEnumTag {};
+constexpr inline FlagEnumTag flag_enum;
+
+}  // namespace annotations
+template <typename T>
+concept is_flag_enum =
+    std::is_scoped_enum_v<T> && meta::has_annotation(^^T, ^^annotations::FlagEnumTag);
+
+template <is_flag_enum E>
+constexpr bool has_flag(E flags, E needle) {
+  using U = std::underlying_type_t<E>;
+  return (static_cast<U>(flags) & static_cast<U>(needle)) == static_cast<U>(needle);
+}
+
+template <is_flag_enum E>
+constexpr bool has_flag(E flags, std::underlying_type_t<E> needle) {
+  using U = std::underlying_type_t<E>;
+  return (static_cast<U>(flags) & needle) == needle;
+}
+
+template <typename T>
+  requires std::is_enum_v<T>
+constexpr bool is_named_enumerator(T value) {
+  constexpr static auto named_enumerators =
+      define_static_array(enumerators_of(^^T) | std::views::transform([](std::meta::info r) {
+                            return extract<T>(constant_of(r));
+                          }));
+  return std::ranges::contains(named_enumerators, value);
+}
+}  // namespace rsl
+
+template <rsl::is_flag_enum E>
+constexpr E operator~(E v) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(~static_cast<U>(v));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr bool operator==(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) == static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr bool operator==(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) == static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr bool operator!=(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) != static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr bool operator!=(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) != static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E>
+constexpr E operator|(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+constexpr E operator&(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+constexpr E operator^(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E operator|(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E operator&(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E operator^(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E operator|(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E operator&(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E operator^(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+constexpr E& operator|=(E& lhs, E rhs) noexcept {
+  return lhs = lhs | rhs;
+}
+
+template <rsl::is_flag_enum E>
+constexpr E& operator&=(E& lhs, E rhs) noexcept {
+  return lhs = lhs & rhs;
+}
+
+template <rsl::is_flag_enum E>
+constexpr E& operator^=(E& lhs, E rhs) noexcept {
+  return lhs = lhs ^ rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E& operator|=(E& lhs, T rhs) noexcept {
+  return lhs = lhs | rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E& operator&=(E& lhs, T rhs) noexcept {
+  return lhs = lhs & rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr E& operator^=(E& lhs, T rhs) noexcept {
+  return lhs = lhs ^ rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr T& operator|=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<uint8_t>(lhs | rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr T& operator&=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<uint8_t>(lhs & rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+constexpr T& operator^=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<uint8_t>(lhs ^ rhs);
+}
