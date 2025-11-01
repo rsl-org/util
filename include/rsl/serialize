@@ -5,7 +5,7 @@
 
 #include "serializer/machinery.hpp"
 #include "serializer/name.hpp"
-#include "serializer/binary.hpp"
+#include "serializer/binary/value.hpp"
 
 #include "stream/stream.hpp"
 #include "stream/memory.hpp"

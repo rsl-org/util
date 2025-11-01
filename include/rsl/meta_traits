@@ -4,6 +4,14 @@
 
 namespace rsl::meta {
 
+consteval bool is_rvalue_reference(std::meta::info type) {
+  return extract<bool>(substitute(^^std::is_rvalue_reference_v, {type}));
+}
+
+consteval bool is_lvalue_reference(std::meta::info type) {
+  return extract<bool>(substitute(^^std::is_lvalue_reference_v, {type}));
+}
+
 consteval bool is_specialization(std::meta::info R, std::meta::info Template) {
   return has_template_arguments(R) &&
          template_of(R) == (is_template(Template) ? Template : template_of(Template));
