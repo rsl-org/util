@@ -81,21 +81,21 @@ TEST(BinaryTypeSerializer, Flags) {
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool const), ElementsAre(0b0101'0000, Flags::CONST));
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool volatile), ElementsAre(0b0101'0000, Flags::VOLATILE));
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool const volatile), ElementsAre(0b0101'0000, Flags::VOLATILE | Flags::CONST));
+ 
+  ASSERT_THAT(TypeSerializer::serialize_type(^^bool &), ElementsAre(0b0101'0000, Flags::LVREF));
+  ASSERT_THAT(TypeSerializer::serialize_type(^^bool const&), ElementsAre(0b0101'0000, Flags::LVREF | Flags::CONST));
+  ASSERT_THAT(TypeSerializer::serialize_type(^^bool volatile&), ElementsAre(0b0101'0000, Flags::LVREF | Flags::VOLATILE));
+  ASSERT_THAT(TypeSerializer::serialize_type(^^bool const volatile&), ElementsAre(0b0101'0000, Flags::LVREF | Flags::VOLATILE | Flags::CONST));
+  
+  ASSERT_THAT(TypeSerializer::serialize_type(^^bool &&), ElementsAre(0b0101'0000, Flags::RVREF));
+  ASSERT_THAT(TypeSerializer::serialize_type(^^bool const&&), ElementsAre(0b0101'0000, Flags::RVREF | Flags::CONST));
+  ASSERT_THAT(TypeSerializer::serialize_type(^^bool volatile&&), ElementsAre(0b0101'0000, Flags::RVREF | Flags::VOLATILE));
+  ASSERT_THAT(TypeSerializer::serialize_type(^^bool const volatile&&), ElementsAre(0b0101'0000, Flags::RVREF | Flags::VOLATILE | Flags::CONST));
   
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool *), ElementsAre(0b0101'0000, Flags::PTR));
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool *const), ElementsAre(0b0101'0000, Flags::PTR | Flags::CONST));
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool *volatile), ElementsAre(0b0101'0000, Flags::PTR | Flags::VOLATILE));
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool *const volatile), ElementsAre(0b0101'0000, Flags::PTR | Flags::VOLATILE | Flags::CONST));
-
-  ASSERT_THAT(TypeSerializer::serialize_type(^^bool &), ElementsAre(0b0101'0000, Flags::LVREF));
-  ASSERT_THAT(TypeSerializer::serialize_type(^^bool const&), ElementsAre(0b0101'0000, Flags::LVREF | Flags::CONST));
-  ASSERT_THAT(TypeSerializer::serialize_type(^^bool volatile&), ElementsAre(0b0101'0000, Flags::LVREF | Flags::VOLATILE));
-  ASSERT_THAT(TypeSerializer::serialize_type(^^bool const volatile&), ElementsAre(0b0101'0000, Flags::LVREF | Flags::VOLATILE | Flags::CONST));
-
-  ASSERT_THAT(TypeSerializer::serialize_type(^^bool &&), ElementsAre(0b0101'0000, Flags::RVREF));
-  ASSERT_THAT(TypeSerializer::serialize_type(^^bool const&&), ElementsAre(0b0101'0000, Flags::RVREF | Flags::CONST));
-  ASSERT_THAT(TypeSerializer::serialize_type(^^bool volatile&&), ElementsAre(0b0101'0000, Flags::RVREF | Flags::VOLATILE));
-  ASSERT_THAT(TypeSerializer::serialize_type(^^bool const volatile&&), ElementsAre(0b0101'0000, Flags::RVREF | Flags::VOLATILE | Flags::CONST));
 
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool *&), ElementsAre(0b0101'0000, Flags::PTR | Flags::LVREF));
   ASSERT_THAT(TypeSerializer::serialize_type(^^bool *const&), ElementsAre(0b0101'0000, Flags::PTR | Flags::LVREF | Flags::CONST));
