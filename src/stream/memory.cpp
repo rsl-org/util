@@ -14,21 +14,13 @@ IOResult MemoryInputStream::try_read(std::byte* target, std::size_t size) {
 }
 
 IOResult VectorOutputStream::try_write(std::byte const* source, std::size_t size) {
-  if (buffer == nullptr) {
-    return {0, IOStatus::error};
-  }
-
   try {
-    buffer->insert(buffer->end(), source, source + size);
+    buffer.append_range(std::span(source, size));
     return {size, IOStatus::ok};
   } catch (...) { return {0, IOStatus::error}; }
 }
 
 void VectorOutputStream::reserve(std::size_t size) {
-  if (buffer == nullptr) {
-    return;
-  }
-
-  buffer->reserve(size);
+  buffer.reserve(size);
 }
 }  // namespace rsl::stream

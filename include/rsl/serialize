@@ -59,13 +59,11 @@ constexpr stream::IOStatus to_bytes(stream::OutputStream& stream, V&& data) {
 
 template <Endianess endianess = Endianess::big, typename V>
 constexpr std::vector<std::byte> to_bytes(V&& data) {
-  auto buffer = std::vector<std::byte>();
-  auto stream = stream::VectorOutputStream(buffer);
+  auto stream = stream::VectorOutputStream();
   auto serializer = serializer::Binary(stream);
 
   serialize(serializer, std::forward<V>(data));
-  buffer.shrink_to_fit();
-  return buffer;
+  return stream.data();
 }
 
 }  // namespace rsl

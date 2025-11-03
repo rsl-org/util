@@ -77,7 +77,68 @@ consteval std::meta::info base_type(std::meta::info type) {
 }
 
 class TypeSerializer {
+  bool with_names = false;
   std::vector<uint8_t> data;
+
+  consteval void serialize_uint(uint64_t value) {
+    if (value < 0x7f) {
+      data.push_back(value);
+    }
+    // todo varuint encoding
+  }
+
+  consteval void serialize_function(std::meta::info fnc) {
+    // TODO lambdas?
+
+    uint8_t value = static_cast<uint8_t>(ControlCode::function);
+    value |= static_cast<uint8_t>(static_cast<uint8_t>(with_names) << 5U);
+    data.push_back(value);
+
+    if (with_names) {
+      // TODO handle function template instances
+      data.append_range(serialize_string(identifier_of(fnc)));
+    }
+
+    serialize(return_type_of(fnc));
+    if (is_member_function_pointer_type(fnc)) {
+      // value |= 1U << 4U;
+      // TODO get class type
+    } else if (meta::is_nonstatic_member_function(fnc)){
+      value |= 1U << 4U;
+      serialize(parent_of(fnc));
+    }
+
+    for (auto param : parameters_of(fnc)) {
+      // TODO deal with optional params?
+      serialize(param);
+    }
+  }
+
+  consteval void serialize_array(std::meta::info type, bool fixed_size = true) {
+    if (is_unbounded_array_type(type)) {
+      fixed_size = false;
+    }
+    size_t rank = 1;
+    auto element_type = type;
+    if (is_array_type(type)) {
+      rank = std::meta::rank(type);
+      element_type = remove_all_extents(type);
+    }
+    
+    uint8_t value = static_cast<uint8_t>(rank == 1 ? ControlCode::array : ControlCode::multi_array);
+    value |= static_cast<uint8_t>(static_cast<uint8_t>(fixed_size) << 4U);
+    data.push_back(value);
+
+    if (fixed_size) {
+      if (rank != 1) {
+        serialize_uint(rank);
+      }
+      for (size_t idx = 0; idx < rank; ++idx) {
+        serialize_uint(extent(type, idx));
+      }
+    }
+    serialize(element_type);    
+  }
 
   consteval uint8_t serialize_builtin(std::meta::info type) {
     uint8_t value             = 0;
@@ -101,7 +162,7 @@ class TypeSerializer {
     return value;
   }
 
-  consteval void serialize_aggregate(std::meta::info type, bool with_names) {
+  consteval void serialize_aggregate(std::meta::info type) {
     uint8_t value = static_cast<uint8_t>(ControlCode::record);
     value |= (static_cast<unsigned>(with_names) << 5U);
 
@@ -130,16 +191,19 @@ class TypeSerializer {
     }
   }
 
-  consteval void serialize(std::meta::info entity, bool with_names = true) {
+  consteval void serialize(std::meta::info entity, bool with_names_ = true) {
+    if (!with_names_) { with_names = false;  } // TODO
+
     auto type       = is_type(entity) ? entity : type_of(entity);
     auto underlying = base_type(type);
-    bool is_named   = with_names && is_class_member(entity) && has_identifier(entity);
+    bool is_named   = with_names && not is_type(entity) && has_identifier(entity);
     uint8_t flags   = to_flags(type);
 
     uint8_t value = 0;
-
-    if (is_class_type(underlying) && is_aggregate_type(underlying)) {
-      serialize_aggregate(underlying, with_names);
+    if (is_array_type(underlying)) {
+      serialize_array(underlying);
+    } else if (is_class_type(underlying) && is_aggregate_type(underlying)) {
+      serialize_aggregate(underlying);
       data.push_back(static_cast<uint8_t>(is_named) << 5U);
     } else if (value = serialize_builtin(underlying); value != 0) {
       value |= static_cast<uint8_t>(static_cast<uint8_t>(flags != 0U) << 4U);

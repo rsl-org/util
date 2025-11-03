@@ -20,8 +20,12 @@ enum class Category : uint8_t {
 };
 
 enum class ControlCode : uint8_t {
-  record_end = 0b000,
-  record     = 0b001,
+  record_end  = 0b000,
+  record      = 0b001,
+  variant     = 0b010,
+  function    = 0b100,
+  array       = 0b110,
+  multi_array = 0b111,
 };
 
 }  // namespace rsl::serializer::_binary_impl
