@@ -1,7 +1,9 @@
 target_sources(rsl-util-test PRIVATE 
   lifetime.cpp 
   special_members.cpp
-  swap.cpp)
+  swap.cpp
+  template.cpp
+)
 
 add_subdirectory(variant.assign)
 add_subdirectory(variant.bad.access)
