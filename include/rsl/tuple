@@ -127,6 +127,19 @@ struct Subscript<T, std::index_sequence<Idx...>> : SubscriptElement<T, Idx>... {
 #endif
 }  // namespace _tuple_impl
 
+
+namespace _impl {
+
+template <typename... Ts>
+consteval std::meta::info make_storage(std::meta::info type) {
+  std::size_t idx = 0;
+  define_aggregate(type,
+                   {data_member_spec(^^Ts, {.name = "_rsl_elt" + util::to_string(idx++)})...});
+  return type;
+}
+
+}  // namespace _impl
+
 template <class... Types>
 class tuple
 #ifdef __clang__
@@ -148,14 +161,10 @@ template <>
 constexpr bool enable_utypes_tuple_ctor<> = false;
 
 public:
-  struct Storage;
-
-  consteval { 
-    std::size_t idx = 0;
-    define_aggregate(^^Storage, {
-      data_member_spec(^^Types, {.name="_rsl_elt" + util::to_string(idx++)})...}); 
-  };
-
+  template <typename... Ts>
+  struct _impl_Storage;
+  consteval { _impl::make_storage<Types...>(^^_impl_Storage<Types...>); }
+  using Storage = _impl_Storage<Types...>;
   Storage _impl_storage;
   static constexpr auto _impl_accessor = [:_impl::cache_members(nonstatic_data_members_of(
                                                ^^Storage,
