@@ -244,12 +244,12 @@ protected:
   friend struct variant_size<variant_base>;
 
   constexpr void reset() {
-    if (discriminator != npos) {
+    if (_impl_discriminator != npos) {
       _visit_impl::visit_at<void>(
-          discriminator,
+          _impl_discriminator,
           [](auto&& member) { std::destroy_at(std::addressof(member)); },
           *this);
-      discriminator = npos;
+      _impl_discriminator = npos;
     }
   }
 
@@ -280,7 +280,7 @@ protected:
           std::construct_at(&lhs, idx, std::forward<T>(rhs_alternative));
         },
         std::forward<V>(rhs));
-    lhs.discriminator = index_type(rhs_index);
+    lhs._impl_discriminator = index_type(rhs_index);
   }
 
 public:
@@ -292,13 +292,11 @@ public:
   using index_type = std::conditional_t<(alternatives.count >= 255), unsigned short, unsigned char>;
   static constexpr auto npos = index_type(-1ULL);
 
-protected:
   union {
-    Storage storage;
+    Storage _impl_storage;
   };
-  index_type discriminator = npos;
+  index_type _impl_discriminator = npos;
 
-public:
   // default constructor, only if alternative #0 is default constructible
   constexpr variant_base()                                                    //
       noexcept(is_nothrow_default_constructible_type(alternatives.types[0]))  // [variant.ctor]/5
@@ -364,11 +362,11 @@ public:
   template <std::size_t Idx, typename... Args>
   constexpr explicit variant_base(std::in_place_index_t<Idx>, Args&&... args)  //
       noexcept(is_nothrow_constructible_type(alternatives.types[Idx], {^^Args...}))
-      : discriminator(Idx) {
+      : _impl_discriminator(Idx) {
     // Primary constructor
 
-    std::construct_at(&storage, '\0');
-    std::construct_at(alternatives.template get_addr<Idx>(storage), std::forward<Args>(args)...);
+    std::construct_at(&_impl_storage, '\0');
+    std::construct_at(alternatives.template get_addr<Idx>(_impl_storage), std::forward<Args>(args)...);
   }
 
   template <std::size_t Idx, typename U, typename... Args>
@@ -377,11 +375,11 @@ public:
                                   Args&&... args)  //
       noexcept(std::is_nothrow_constructible_v<    //
                typename[:alternatives.types[Idx]:], std::initializer_list<U>&, Args...>)
-      : discriminator(Idx) {
+      : _impl_discriminator(Idx) {
     // Primary constructor
 
-    std::construct_at(&storage, '\0');
-    std::construct_at(alternatives.template get_addr<Idx>(storage),
+    std::construct_at(&_impl_storage, '\0');
+    std::construct_at(alternatives.template get_addr<Idx>(_impl_storage),
                       init_list,
                       std::forward<Args>(args)...);
   }
@@ -429,11 +427,11 @@ public:
   = default;
   constexpr ~variant_base() { reset(); }
   [[nodiscard]] constexpr bool valueless_by_exception() const noexcept {
-    return discriminator == npos;
+    return _impl_discriminator == npos;
   }
   [[nodiscard]] constexpr std::size_t index() const noexcept {
-    if (discriminator != npos) {
-      return discriminator;
+    if (_impl_discriminator != npos) {
+      return _impl_discriminator;
     }
     return variant_npos;
   }
@@ -443,8 +441,8 @@ public:
     static_assert(Idx < alternatives.count, "Alternative index out of bounds");
 
     reset();
-    std::construct_at(alternatives.template get_addr<Idx>(storage), std::forward<Args>(args)...);
-    discriminator = Idx;
+    std::construct_at(alternatives.template get_addr<Idx>(_impl_storage), std::forward<Args>(args)...);
+    _impl_discriminator = Idx;
   }
 
   template <typename T, typename... Args>
@@ -456,7 +454,7 @@ public:
   template <std::size_t Idx, typename Self>
   constexpr decltype(auto) get_alt(this Self&& self) {
     static_assert(Idx < alternatives.count, "Alternative index out of bounds");
-    return alternatives.template get<Idx>(std::forward<Self>(self).storage);
+    return alternatives.template get<Idx>(std::forward<Self>(self)._impl_storage);
   }
 
   template <std::size_t Idx, typename Self>
@@ -929,10 +927,10 @@ public:
 
   using tags = E;
 
-  storage_type* operator->() { return &this->storage; }
-  storage_type const* operator->() const { return &this->storage; }
-  storage_type* operator*() { return &this->storage; }
-  storage_type const* operator*() const { return &this->storage; }
+  storage_type* operator->() { return &this->_impl_storage; }
+  storage_type const* operator->() const { return &this->_impl_storage; }
+  storage_type* operator*() { return &this->_impl_storage; }
+  storage_type const* operator*() const { return &this->_impl_storage; }
 
   explicit(false) operator E() const { return _tagged_variant_impl::transitions<E>[this->index()]; }
 
