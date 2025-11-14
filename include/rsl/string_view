@@ -311,12 +311,25 @@ basic_string_view(R&&) -> basic_string_view<std::ranges::range_value_t<R>>;
 
 // [string.view.comparison], non-member comparison functions
 template <typename CharT, typename Traits>
+constexpr bool operator==(basic_string_view<CharT, Traits> lhs, std::basic_string_view<CharT, Traits> rhs) noexcept {
+  // this is a better match for comparisons of rsl::string_view to std::string_view, it disambiguates
+  return std::string_view(lhs) == rhs;
+}
+
+template <typename CharT, typename Traits>
 constexpr bool operator==(basic_string_view<CharT, Traits> lhs,
                           std::type_identity_t<basic_string_view<CharT, Traits>> rhs) noexcept {
   if (lhs.size() != rhs.size()) {
     return false;
   }
   return lhs.compare(rhs) == 0;
+}
+
+template <typename CharT, typename Traits>
+constexpr auto operator<=>(basic_string_view<CharT, Traits> lhs,
+                           std::basic_string_view<CharT, Traits> rhs) noexcept {
+  // better match for comparisons between rsl::string_view and std::string_view
+  return std::string_view(lhs) <=> rhs;
 }
 
 template <typename CharT, typename Traits>
