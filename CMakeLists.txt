@@ -8,22 +8,25 @@ project(rsl-util VERSION 0.1 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 
-add_library(rsl-util)
+add_library(rsl-util INTERFACE)
 add_library(rsl::util ALIAS rsl-util)
-target_compile_options(rsl-util PUBLIC
+
+# TODO remove
+target_compile_options(rsl-util INTERFACE
   "-stdlib=libc++"
   "-freflection-latest"
   "-Wno-c++26-extensions"
 )
-target_compile_features(rsl-util PUBLIC cxx_std_26)
-target_link_options(rsl-util PUBLIC "-stdlib=libc++")
-target_link_libraries(rsl-util PUBLIC "c++abi")
-target_include_directories(rsl-util PUBLIC
+
+# TODO remove
+target_compile_features(rsl-util INTERFACE cxx_std_26)
+target_link_options(rsl-util INTERFACE "-stdlib=libc++")
+target_link_libraries(rsl-util INTERFACE "c++abi")
+
+target_include_directories(rsl-util INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
 )
-
-add_subdirectory(src)
 
 option(BUILD_TESTING "Enable tests" ON)
 option(BUILD_EXAMPLES "Enable examples" ON)
@@ -55,12 +58,6 @@ if (RSL_UTIL_INSTALL)
     ${PROJECT_BINARY_DIR}/rsl-util-config-version.cmake
     ${PROJECT_BINARY_DIR}/rsl-util-config.cmake
     DESTINATION ${CMAKE_INSTALLDIR_CMAKEDIR}
-  )
-  install(TARGETS rsl-util
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 endif()
 

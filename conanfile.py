@@ -6,7 +6,8 @@ from conan.tools.files import copy
 class RslUtilRecipe(ConanFile):
     name = "rsl-util"
     version = "0.1"
-    package_type = "library"
+    package_type = "header-library"
+    no_copy_source = True
 
     # Optional metadata
     license = "MIT"
@@ -14,26 +15,14 @@ class RslUtilRecipe(ConanFile):
     description = "Reflective reimplementations of various standard library types and other utilities."
     topics = () # TODO
 
-    # Binary configuration
-    settings = "os", "compiler", "build_type", "arch"
+    settings = "os", "arch", "compiler", "build_type"
     options = {
-        "shared": [True, False], "fPIC": [True, False],
         "examples": [True, False], "tests": [True, False]
     }
-    default_options = {"shared": False, "fPIC": True,
-                       "examples": False, "tests": False}
+    default_options = {"examples": False, "tests": False}
     generators = "CMakeToolchain", "CMakeDeps"
 
     exports_sources = "CMakeLists.txt", "include/*", "test/*", "cmake/*"
-
-    def config_options(self):
-        if self.settings.os == "Windows":
-            self.options.rm_safe("fPIC")
-
-    def configure(self):
-        if self.options.shared:
-            self.options.rm_safe("fPIC")
-
     def requirements(self):
         if self.options.tests:
             self.requires("gtest/1.14.0")
@@ -62,4 +51,4 @@ class RslUtilRecipe(ConanFile):
         util = self.cpp_info.components["util"]
         util.set_property("cmake_target_name", "rsl::util")
         util.includedirs = ["include"]
-        util.libs = ["rsl-util"]
+        util.libs = []
