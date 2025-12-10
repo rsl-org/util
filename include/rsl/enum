@@ -34,16 +34,6 @@ constexpr bool has_flag(E flags, std::underlying_type_t<E> needle) {
   return (static_cast<U>(flags) & needle) == needle;
 }
 
-template <typename T>
-  requires std::is_enum_v<T>
-constexpr bool is_named_enumerator(T value) {
-  constexpr static auto named_enumerators =
-      define_static_array(enumerators_of(^^T) | std::views::transform([](std::meta::info r) {
-                            return extract<T>(constant_of(r));
-                          }));
-  return std::ranges::contains(named_enumerators, value);
-}
-
 namespace _impl {
 template <typename E>
 struct enum_range {
@@ -79,10 +69,10 @@ private:
 public:
   static constexpr auto range     = get_enumerator_range();
   static constexpr auto bit_width = get_bit_width();
-  static constexpr auto min_value = range.min < 0 ? -(1ULL << (bit_width - 1)) : 0;
-  static constexpr auto max_value = range.min < 0 ? -(min_value + 1)
-                                                  : std::numeric_limits<uint64_t>::max() >>
-                                                        (bit_width >= 64 ? 0 : 64 - bit_width);
+  static constexpr auto min_value = E(range.min < 0 ? -(1ULL << (bit_width - 1U)) : 0);
+  static constexpr auto max_value = E(range.min < 0 ? -(static_cast<underlying>(min_value) + 1)
+                                                    : std::numeric_limits<uint64_t>::max() >>
+                                                          (bit_width >= 64 ? 0U : 64 - bit_width));
 };
 }  // namespace _impl
 
@@ -98,12 +88,8 @@ template <typename E>
 struct numeric_limits<E> {
   using type                                 = E;
   static constexpr const bool is_specialized = false;
-  [[nodiscard]] static constexpr type min() noexcept {
-    return type(_impl::enum_range<E>::min_value);
-  }
-  [[nodiscard]] static constexpr type max() noexcept {
-    return type(_impl::enum_range<E>::max_value);
-  }
+  [[nodiscard]] static constexpr type min() noexcept { return _impl::enum_range<E>::min_value; }
+  [[nodiscard]] static constexpr type max() noexcept { return _impl::enum_range<E>::max_value; }
   [[nodiscard]] static constexpr type lowest() noexcept { return min(); }
 
   static constexpr const int digits       = _impl::enum_range<E>::bit_width;
@@ -142,6 +128,31 @@ struct numeric_limits<E> {
 
 template <fixed_enum E>
 struct numeric_limits<E> : std::numeric_limits<std::underlying_type_t<E>> {};
+
+template <typename T, typename V>
+  requires std::is_enum_v<T> and (std::same_as<V, T> or std::convertible_to<V, std::underlying_type_t<T>>)
+constexpr bool is_named_enumerator(V value) {
+  constexpr static auto named_enumerators =
+      define_static_array(enumerators_of(^^T) | std::views::transform([](std::meta::info r) {
+                            return extract<T>(constant_of(r));
+                          }));
+  return std::ranges::contains(named_enumerators, value);
+}
+
+template <typename T, typename V>
+  requires std::is_enum_v<T> and (std::same_as<V, T> or std::convertible_to<V, std::underlying_type_t<T>>)
+constexpr bool is_valid_enumerator(V value) {
+  using underlying = std::underlying_type_t<T>;
+  if constexpr (is_flag_enum<T>) {
+    return static_cast<underlying>(value) >=
+               static_cast<underlying>(_impl::enum_range<T>::min_value) and
+           static_cast<underlying>(value) <=
+               static_cast<underlying>(_impl::enum_range<T>::max_value);
+  }
+  return static_cast<underlying>(value) >=
+             static_cast<underlying>(rsl::numeric_limits<T>::min()) and
+         static_cast<underlying>(value) <= static_cast<underlying>(rsl::numeric_limits<T>::max());
+}
 }  // namespace rsl
 
 #ifdef RSL_POISON_STD
