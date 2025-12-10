@@ -24,32 +24,32 @@ enum class Zoinks : int {
 }
 
 TEST(Enum, IsNamed) {
-  ASSERT_TRUE(rsl::is_named_enumerator<Foo>(Foo::bar));
-  ASSERT_TRUE(rsl::is_named_enumerator<Foo>(Foo::foo));
-  ASSERT_FALSE(rsl::is_named_enumerator<Foo>(20));
+  ASSERT_TRUE(rsl::in_enum<Foo>(Foo::bar));
+  ASSERT_TRUE(rsl::in_enum<Foo>(Foo::foo));
+  ASSERT_FALSE(rsl::in_enum<Foo>(20));
 }
 
-TEST(Enum, IsValid) {
-  ASSERT_TRUE(rsl::is_valid_enumerator<Foo>(Foo::foo));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Foo>(Foo::bar));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Foo>(Foo::foo | Foo::bar));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Foo>(15));
-  ASSERT_FALSE(rsl::is_valid_enumerator<Foo>(16));
+TEST(Enum, InRange) {
+  ASSERT_TRUE(rsl::in_range<Foo>(Foo::foo));
+  ASSERT_TRUE(rsl::in_range<Foo>(Foo::bar));
+  ASSERT_TRUE(rsl::in_range<Foo>(Foo::foo | Foo::bar));
+  ASSERT_TRUE(rsl::in_range<Foo>(15));
+  ASSERT_FALSE(rsl::in_range<Foo>(16));
 
-  ASSERT_TRUE(rsl::is_valid_enumerator<Bar>(Bar::foo1));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Bar>(Bar::foo2));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Bar>(Bar(-8)));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Bar>(Bar(7)));
-  ASSERT_FALSE(rsl::is_valid_enumerator<Bar>(-9));
-  ASSERT_FALSE(rsl::is_valid_enumerator<Bar>(8));
+  ASSERT_TRUE(rsl::in_range<Bar>(Bar::foo1));
+  ASSERT_TRUE(rsl::in_range<Bar>(Bar::foo2));
+  ASSERT_TRUE(rsl::in_range<Bar>(Bar(-8)));
+  ASSERT_TRUE(rsl::in_range<Bar>(Bar(7)));
+  ASSERT_FALSE(rsl::in_range<Bar>(-9));
+  ASSERT_FALSE(rsl::in_range<Bar>(8));
 
-  ASSERT_TRUE(rsl::is_valid_enumerator<Baz>(Baz::foo));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Baz>(Baz::bar));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Baz>(Baz::foo | Baz::bar));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Baz>(15));
-  ASSERT_FALSE(rsl::is_valid_enumerator<Baz>(16));
+  ASSERT_TRUE(rsl::in_range<Baz>(Baz::foo));
+  ASSERT_TRUE(rsl::in_range<Baz>(Baz::bar));
+  ASSERT_TRUE(rsl::in_range<Baz>(Baz::foo | Baz::bar));
+  ASSERT_TRUE(rsl::in_range<Baz>(15));
+  ASSERT_FALSE(rsl::in_range<Baz>(16));
 
-  ASSERT_TRUE(rsl::is_valid_enumerator<Zoinks>(Zoinks::foo));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Zoinks>(Zoinks::bar));
-  ASSERT_TRUE(rsl::is_valid_enumerator<Zoinks>(1234));
+  ASSERT_TRUE(rsl::in_range<Zoinks>(Zoinks::foo));
+  ASSERT_TRUE(rsl::in_range<Zoinks>(Zoinks::bar));
+  ASSERT_TRUE(rsl::in_range<Zoinks>(1234));
 }
