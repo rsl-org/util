@@ -10,9 +10,17 @@ struct FlagEnumTag {};
 constexpr inline FlagEnumTag flag_enum;
 
 }  // namespace annotations
+
 template <typename T>
 concept is_flag_enum =
     std::is_scoped_enum_v<T> && meta::has_annotation(^^T, ^^annotations::FlagEnumTag);
+
+template <typename T>
+concept fixed_enum = std::is_enum_v<T> and requires { T{0}; };
+
+consteval bool has_fixed_underlying_type(std::meta::info r) {
+  return is_type(r) and is_enum_type(r) and extract<bool>(substitute(^^fixed_enum, {r}));
+}
 
 template <is_flag_enum E>
 constexpr bool has_flag(E flags, E needle) {
@@ -35,7 +43,112 @@ constexpr bool is_named_enumerator(T value) {
                           }));
   return std::ranges::contains(named_enumerators, value);
 }
+
+namespace _impl {
+template <typename E>
+struct enum_range {
+  using underlying = std::underlying_type_t<E>;
+  struct Range {
+    underlying min;
+    underlying max;
+  };
+
+private:
+  static consteval Range get_enumerator_range() {
+    auto enumerators = enumerators_of(^^E);
+    if (enumerators.empty()) {
+      return {0, 0};
+    } else {
+      auto transformed      = enumerators | std::views::transform(std::meta::extract<E>);
+      auto [min_it, max_it] = std::ranges::minmax_element(transformed);
+      return {static_cast<underlying>(*min_it), static_cast<underlying>(*max_it)};
+    }
+  }
+
+  static constexpr int get_bit_width() {
+    using unsigned_underlying = std::make_unsigned_t<underlying>;
+
+    if (range.min < 0) {
+      auto min_val = static_cast<unsigned_underlying>(~range.min);
+      auto max_val = static_cast<unsigned_underlying>(range.max < 0 ? ~range.max : range.max);
+      return 1 + std::max(std::bit_width(min_val), std::bit_width(max_val));
+    }
+    return std::max(1, std::bit_width(unsigned_underlying(range.max)));
+  }
+
+public:
+  static constexpr auto range     = get_enumerator_range();
+  static constexpr auto bit_width = get_bit_width();
+  static constexpr auto min_value = range.min < 0 ? -(1ULL << (bit_width - 1)) : 0;
+  static constexpr auto max_value = range.min < 0 ? -(min_value + 1)
+                                                  : std::numeric_limits<uint64_t>::max() >>
+                                                        (bit_width >= 64 ? 0 : 64 - bit_width);
+};
+}  // namespace _impl
+
+template <typename T>
+struct numeric_limits;
+
+template <typename T>
+  requires std::numeric_limits<T>::is_specialized
+struct numeric_limits<T> : std::numeric_limits<T> {};
+
+template <typename E>
+  requires std::is_enum_v<E> && (not fixed_enum<E>)
+struct numeric_limits<E> {
+  using type                                 = E;
+  static constexpr const bool is_specialized = false;
+  [[nodiscard]] static constexpr type min() noexcept {
+    return type(_impl::enum_range<E>::min_value);
+  }
+  [[nodiscard]] static constexpr type max() noexcept {
+    return type(_impl::enum_range<E>::max_value);
+  }
+  [[nodiscard]] static constexpr type lowest() noexcept { return min(); }
+
+  static constexpr const int digits       = _impl::enum_range<E>::bit_width;
+  static constexpr const int digits10     = digits * 3 / 10;
+  static constexpr const int max_digits10 = 0;
+  static constexpr const bool is_signed   = std::is_signed_v<std::underlying_type_t<E>>;
+  static constexpr const bool is_integer  = true;
+  static constexpr const bool is_exact    = true;
+  static constexpr const int radix        = 2;
+  [[nodiscard]] static constexpr type epsilon() noexcept { return type(); }
+  [[nodiscard]] static constexpr type round_error() noexcept { return type(); }
+
+  static constexpr const int min_exponent   = 0;
+  static constexpr const int min_exponent10 = 0;
+  static constexpr const int max_exponent   = 0;
+  static constexpr const int max_exponent10 = 0;
+
+  static constexpr const bool has_infinity                                 = false;
+  static constexpr const bool has_quiet_NaN                                = false;
+  static constexpr const bool has_signaling_NaN                            = false;
+  [[deprecated]] static constexpr const std::float_denorm_style has_denorm = std::denorm_absent;
+  [[deprecated]] static constexpr const bool has_denorm_loss               = false;
+  [[nodiscard]] static constexpr type infinity() noexcept { return type(); }
+  [[nodiscard]] static constexpr type quiet_NaN() noexcept { return type(); }
+  [[nodiscard]] static constexpr type signaling_NaN() noexcept { return type(); }
+  [[nodiscard]] static constexpr type denorm_min() noexcept { return type(); }
+
+  static constexpr const bool is_iec559  = false;
+  static constexpr const bool is_bounded = true;
+  static constexpr const bool is_modulo  = false;
+
+  static constexpr const bool traps = std::numeric_limits<std::underlying_type_t<E>>::traps;
+  static constexpr const bool tinyness_before               = false;
+  static constexpr const std::float_round_style round_style = std::round_toward_zero;
+};
+
+template <fixed_enum E>
+struct numeric_limits<E> : std::numeric_limits<std::underlying_type_t<E>> {};
 }  // namespace rsl
+
+#ifdef RSL_POISON_STD
+template <typename E>
+  requires std::is_enum_v<E>
+struct std::numeric_limits<E> : rsl::numeric_limits<E> {};
+#endif
 
 template <rsl::is_flag_enum E>
 constexpr E operator~(E v) noexcept {
