@@ -19,7 +19,7 @@ template <typename T>
 concept fixed_enum = std::is_enum_v<T> and requires { T{0}; };
 
 consteval bool has_fixed_underlying_type(std::meta::info r) {
-  return is_type(r) and is_enum_type(r) and extract<bool>(substitute(^^fixed_enum, {r}));
+  return is_type(r) and extract<bool>(substitute(^^fixed_enum, {r}));
 }
 
 template <is_flag_enum E>
