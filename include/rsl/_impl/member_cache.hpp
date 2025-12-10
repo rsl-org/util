@@ -24,6 +24,7 @@ struct MemberAccessor {
 
   constexpr static auto count                               = sizeof...(Members);
   constexpr static std::array<std::meta::info, count> types = {dealias(type_of(Members))...};
+  constexpr static std::array<std::meta::info, count> members = {Members...};
 
   static consteval std::size_t get_index_of(std::meta::info needle) {
     constexpr std::size_t npos = ~0ZU;

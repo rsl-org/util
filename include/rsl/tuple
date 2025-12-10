@@ -128,18 +128,6 @@ struct Subscript<T, std::index_sequence<Idx...>> : SubscriptElement<T, Idx>... {
 #endif
 }  // namespace _tuple_impl
 
-namespace _impl {
-
-template <typename... Ts>
-consteval std::meta::info make_storage(std::meta::info type) {
-  std::size_t idx = 0;
-  define_aggregate(type,
-                   {data_member_spec(^^Ts, {.name = "_rsl_elt" + util::to_string(idx++)})...});
-  return type;
-}
-
-}  // namespace _impl
-
 template <class... Types>
 class tuple
 #ifdef __clang__
@@ -160,14 +148,22 @@ private:
   template <>
   constexpr bool enable_utypes_tuple_ctor<> = false;
 
-public:
+  // FIXME, variadic template for StorageHolder is not needed, but required to workaround a clang
+  // implementation
   template <typename... Ts>
-  struct _impl_Storage;
-  consteval { _impl::make_storage<Types...>(^^_impl_Storage<Types...>); }
-  using Storage = _impl_Storage<Types...>;
-  Storage _impl_storage;
+  struct StorageHolder;
+  consteval {
+    std::size_t idx = 0;
+    define_aggregate(^^StorageHolder<Types...>,
+                     {data_member_spec(^^Types, {.name = "_impl_" + util::to_string(idx++)})...});
+  }
+  using storage_type = StorageHolder<Types...>;
+
+public:
+
+  storage_type _impl_storage;
   static constexpr auto _impl_accessor = [:_impl::cache_members(nonstatic_data_members_of(
-                                               ^^Storage,
+                                               ^^storage_type,
                                                std::meta::access_context::unchecked())):];
 
   // template <typename... UTypes>
@@ -183,8 +179,8 @@ public:
 
   // [tuple.cnstr], tuple construction
   constexpr explicit((!_tuple_impl::is_implicitly_default_constructible<Types> || ...))
-      tuple() noexcept(std::is_nothrow_default_constructible_v<Storage>)
-    requires(std::is_default_constructible_v<Storage>)
+      tuple() noexcept(std::is_nothrow_default_constructible_v<storage_type>)
+    requires(std::is_default_constructible_v<storage_type>)
   = default;
 
   constexpr explicit(!(std::is_convertible_v<Types const&, Types> && ...))
@@ -206,12 +202,12 @@ public:
              (std::reference_constructs_from_temporary_v<Types, UTypes &&> || ...))
   constexpr tuple(UTypes&&... values) = delete;
 
-  tuple(tuple const&) noexcept(std::is_nothrow_copy_constructible_v<Storage>)
-    requires(std::is_copy_constructible_v<Storage>)
+  tuple(tuple const&) noexcept(std::is_nothrow_copy_constructible_v<storage_type>)
+    requires(std::is_copy_constructible_v<storage_type>)
   = default;
 
-  tuple(tuple&&) noexcept(std::is_nothrow_move_constructible_v<Storage>)
-    requires(std::is_move_constructible_v<Storage>)
+  tuple(tuple&&) noexcept(std::is_nothrow_move_constructible_v<storage_type>)
+    requires(std::is_move_constructible_v<storage_type>)
   = default;
 
   template <class... UTypes>
@@ -307,8 +303,12 @@ public:
   constexpr tuple& operator=(const tuple& other)
     requires(std::ranges::all_of(_impl_accessor.types, std::meta::is_copy_assignable_type))
   {
-    template for (constexpr auto el : define_static_array(
-                      nonstatic_data_members_of(^^Storage, std::meta::access_context::current()))) {
+    /// 
+    /// TODO: replace with
+    /// constexpr static auto [...Idx] = std::make_index_sequence<_impl_accessor.count>();
+    /// ((get<Idx>(*this) = get<Idx>(other)), ...); 
+    /// 
+    template for (constexpr auto el : _impl_accessor.members) {
       this->_impl_storage.[:el:] = other._impl_storage.[:el:];
     }
     return *this;
@@ -317,14 +317,10 @@ public:
   constexpr const tuple& operator=(const tuple& other) const
       noexcept(std::ranges::all_of(_impl_accessor.types,
                                    std::meta::is_nothrow_copy_constructible_type))
-    requires(std::ranges::all_of(_impl_accessor.types,
-                                 [](std::meta::info type) consteval {
-                                   return std::meta::is_copy_assignable_type(
-                                       std::meta::add_const(type));
-                                 }))
+    requires(std::ranges::all_of(std::ranges::transform(_impl_accessor.types, std::meta::add_const),
+                                 std::meta::is_copy_assignable_type))
   {
-    template for (constexpr auto el : define_static_array(
-                      nonstatic_data_members_of(^^Storage, std::meta::access_context::current()))) {
+    template for (constexpr auto el : _impl_accessor.members) {
       this->_impl_storage.[:el:] = other._impl_storage.[:el:];
     }
     return *this;
@@ -340,14 +336,12 @@ public:
   }
 
   constexpr const tuple& operator=(tuple&& other) const
-    requires(std::ranges::all_of(_impl_accessor.types,  // tuple.assign-12
-                                 [](std::meta::info type) consteval {
-                                   return std::meta::is_assignable_type(std::meta::add_const(type),
-                                                                        type);
-                                 }))
+    requires(std::ranges::all_of(std::ranges::transform(_impl_accessor.types, std::meta::add_const),
+                                 std::meta::is_assignable_type))  // tuple.assign-12
   {
     template for (constexpr auto el : define_static_array(
-                      nonstatic_data_members_of(^^Storage, std::meta::access_context::current()))) {
+                      nonstatic_data_members_of(^^storage_type,
+                                                std::meta::access_context::current()))) {
       this->_impl_storage.[:el:] = std::move(other._impl_storage.[:el:]);
     }
     return *this;
@@ -363,13 +357,12 @@ public:
     return *this;
   }
 
-    template <class... UTypes>
+  template <class... UTypes>
     requires(sizeof...(UTypes) == sizeof...(Types) &&
              (std::is_assignable_v<const Types&, const UTypes&> && ...))  // tuple-assign-18
   constexpr const tuple& operator=(const tuple<UTypes...>& other) const {
     template for (constexpr auto Idx : rsl::make_index_sequence<sizeof...(Types)>()) {
-      constexpr auto el = define_static_array(
-          nonstatic_data_members_of(^^Storage, std::meta::access_context::current()))[Idx];
+      constexpr auto el          = _impl_accessor.members[Idx];
       this->_impl_storage.[:el:] = other.template get<Idx>();
     }
     return *this;
@@ -390,8 +383,7 @@ public:
              (std::is_assignable_v<const Types&, UTypes> && ...))  // tuple-assign-24
   constexpr const tuple& operator=(tuple<UTypes...>&& other) const {
     template for (constexpr auto Idx : rsl::make_index_sequence<sizeof...(Types)>()) {
-      constexpr auto el = define_static_array(
-          nonstatic_data_members_of(^^Storage, std::meta::access_context::current()))[Idx];
+      constexpr auto el          = _impl_accessor.members[Idx];
       this->_impl_storage.[:el:] = std::forward<UTypes...[Idx]>(other.template get<Idx>());
     }
     return *this;
