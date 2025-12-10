@@ -183,4 +183,4 @@ private:
     find    = &Parser.find;
   }
 };
-}  // namespace rsl::cli
+}  // namespace rsl
