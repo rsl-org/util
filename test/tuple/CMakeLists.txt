@@ -1,6 +1,9 @@
 target_sources(rsl-util-test PRIVATE 
     structured_bindings.cpp
     empty.cpp
+    assign.cpp
+    tie.cpp
+    make_tuple.cpp
 )
 
 add_subdirectory(tuple.get)

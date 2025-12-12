@@ -8,6 +8,7 @@
 #include <rsl/_impl/index_of.hpp>
 #include <rsl/_impl/member_cache.hpp>
 #include <rsl/util/to_string.hpp>
+#include <rsl/utility>
 
 #ifndef RSL_STD_COMPAT
 #  define RSL_STD_COMPAT 1
@@ -91,23 +92,23 @@ concept is_implicitly_default_constructible = std::is_default_constructible_v<T>
 #ifdef __clang__
 template <typename T, std::size_t Idx>
 struct SubscriptElement {
-  constexpr decltype(auto) operator[](std::size_t idx) &
-      __attribute__((enable_if(idx == Idx, "index mismatch"))) {
+  constexpr decltype(auto) operator[](
+      std::size_t idx) & __attribute__((enable_if(idx == Idx, "index mismatch"))) {
     return get<Idx>(static_cast<T&>(*this));
   }
 
-  constexpr decltype(auto) operator[](std::size_t idx) const&
-      __attribute__((enable_if(idx == Idx, "index mismatch"))) {
+  constexpr decltype(auto) operator[](
+      std::size_t idx) const& __attribute__((enable_if(idx == Idx, "index mismatch"))) {
     return get<Idx>(static_cast<T const&>(*this));
   }
 
-  constexpr decltype(auto) operator[](std::size_t idx) &&
-      __attribute__((enable_if(idx == Idx, "index mismatch"))) {
+  constexpr decltype(auto) operator[](
+      std::size_t idx) && __attribute__((enable_if(idx == Idx, "index mismatch"))) {
     return get<Idx>(static_cast<T&&>(*this));
   }
 
-  constexpr decltype(auto) operator[](std::size_t idx) const&&
-      __attribute__((enable_if(idx == Idx, "index mismatch"))) {
+  constexpr decltype(auto) operator[](
+      std::size_t idx) const&& __attribute__((enable_if(idx == Idx, "index mismatch"))) {
     return get<Idx>(static_cast<T const&&>(*this));
   }
 };
@@ -134,45 +135,52 @@ class tuple
 #endif
 {
 private:
+  template <typename... Us>
+  constexpr static bool enable_utypes_ctor =
+      !std::same_as<tuple, Us...[0]> && (std::is_constructible_v<Types, Us> && ...);
 
-template <typename... Us>
-constexpr static bool enable_utypes_ctor = !std::same_as<tuple, Us...[0]> && (std::is_constructible_v<Types, Us> && ...); 
+  template <>
+  constexpr bool enable_utypes_ctor<> = false;
 
-template<>
-constexpr bool enable_utypes_ctor<> = false;
+  template <typename... Us>
+  constexpr static bool enable_utypes_tuple_ctor = true;  // TODO
 
-template <typename... Us>
-constexpr static bool enable_utypes_tuple_ctor = true; // TODO
+  template <>
+  constexpr bool enable_utypes_tuple_ctor<> = false;
 
-template <>
-constexpr bool enable_utypes_tuple_ctor<> = false;
+  // FIXME, variadic template for StorageHolder is not needed, but required to workaround a clang
+  // implementation
+  template <typename... Ts>
+  struct StorageHolder;
+  consteval {
+    std::size_t idx = 0;
+    define_aggregate(^^StorageHolder<Types...>,
+                     {data_member_spec(^^Types, {.name = "_impl_" + util::to_string(idx++)})...});
+  }
+  using storage_type = StorageHolder<Types...>;
 
 public:
-  struct Storage;
 
-  consteval { 
-    std::size_t idx = 0;
-    define_aggregate(^^Storage, {
-      data_member_spec(^^Types, {.name="_rsl_elt" + util::to_string(idx++)})...}); 
-  };
-
-  Storage _impl_storage;
+  storage_type _impl_storage;
   static constexpr auto _impl_accessor = [:_impl::cache_members(nonstatic_data_members_of(
-                                               ^^Storage,
+                                               ^^storage_type,
                                                std::meta::access_context::unchecked())):];
 
   // template <typename... UTypes>
   // static constexpr auto _impl_disambiguation_constraint =
-  //     (sizeof...(Types) == 1 && !std::same_as<std::remove_cvref_t<rsl::tuple_element_t<0, rsl::tuple<UTypes...>>>, tuple>) ||
+  //     (sizeof...(Types) == 1 && !std::same_as<std::remove_cvref_t<rsl::tuple_element_t<0,
+  //     rsl::tuple<UTypes...>>>, tuple>) ||
   //     ((sizeof...(Types) == 2 || sizeof...(Types) == 3) &&
-  //      (!std::same_as<std::remove_cvref_t<rsl::tuple_element_t<0, rsl::tuple<UTypes...>>>, std::allocator_arg_t> ||
-  //       std::same_as<std::remove_cvref_t<rsl::tuple_element_t<0, rsl::tuple<Types...>>>, std::allocator_arg_t>)) ||
+  //      (!std::same_as<std::remove_cvref_t<rsl::tuple_element_t<0, rsl::tuple<UTypes...>>>,
+  //      std::allocator_arg_t> ||
+  //       std::same_as<std::remove_cvref_t<rsl::tuple_element_t<0, rsl::tuple<Types...>>>,
+  //       std::allocator_arg_t>)) ||
   //     sizeof...(Types) >= 1;
 
   // [tuple.cnstr], tuple construction
   constexpr explicit((!_tuple_impl::is_implicitly_default_constructible<Types> || ...))
-      tuple() noexcept(std::is_nothrow_default_constructible_v<Storage>)
-    requires(std::is_default_constructible_v<Storage>)
+      tuple() noexcept(std::is_nothrow_default_constructible_v<storage_type>)
+    requires(std::is_default_constructible_v<storage_type>)
   = default;
 
   constexpr explicit(!(std::is_convertible_v<Types const&, Types> && ...))
@@ -194,40 +202,40 @@ public:
              (std::reference_constructs_from_temporary_v<Types, UTypes &&> || ...))
   constexpr tuple(UTypes&&... values) = delete;
 
-  tuple(tuple const&) noexcept(std::is_nothrow_copy_constructible_v<Storage>)
-    requires(std::is_copy_constructible_v<Storage>)
+  tuple(tuple const&) noexcept(std::is_nothrow_copy_constructible_v<storage_type>)
+    requires(std::is_copy_constructible_v<storage_type>)
   = default;
 
-  tuple(tuple&&) noexcept(std::is_nothrow_move_constructible_v<Storage>)
-    requires(std::is_move_constructible_v<Storage>)
+  tuple(tuple&&) noexcept(std::is_nothrow_move_constructible_v<storage_type>)
+    requires(std::is_move_constructible_v<storage_type>)
   = default;
 
-    template <class... UTypes>
-    constexpr explicit(!(std::is_convertible_v<UTypes&, Types> && ...)) 
-    tuple(tuple<UTypes...>& other)
-    noexcept((std::is_nothrow_constructible_v<Types, UTypes&> && ...))
-    requires(false) // TODO
-    : _impl_storage(other) {}
-    
-    template <class... UTypes>
-    constexpr explicit(!(std::is_convertible_v<UTypes const&, Types> && ...)) 
-    tuple(tuple<UTypes...> const& other)
-    noexcept((std::is_nothrow_constructible_v<Types, UTypes const&> && ...))
-    requires(false) // TODO
-    : _impl_storage(other) {}
+  template <class... UTypes>
+  constexpr explicit(!(std::is_convertible_v<UTypes&, Types> && ...))
+      tuple(tuple<UTypes...>& other) noexcept((std::is_nothrow_constructible_v<Types, UTypes&> &&
+                                               ...))
+    requires(false)  // TODO
+      : _impl_storage(other) {}
 
-    template <class... UTypes>
-    constexpr explicit(!(std::is_convertible_v<UTypes, Types> && ...)) 
-    tuple(tuple<UTypes...>&& other)
-    noexcept((std::is_nothrow_constructible_v<Types, UTypes> && ...))
-    requires(false) // TODO
-    : _impl_storage(std::move(other)) {}
-    
-    template <class... UTypes>
-    constexpr explicit(!(std::is_convertible_v<UTypes, Types> && ...)) 
-    tuple(tuple<UTypes...> const&& other)
-    requires(false) // TODO
-    : _impl_storage(std::move(other)) {}
+  template <class... UTypes>
+  constexpr explicit(!(std::is_convertible_v<UTypes const&, Types> && ...))
+      tuple(tuple<UTypes...> const& other) noexcept(
+          (std::is_nothrow_constructible_v<Types, UTypes const&> && ...))
+    requires(false)  // TODO
+      : _impl_storage(other) {}
+
+  template <class... UTypes>
+  constexpr explicit(!(std::is_convertible_v<UTypes, Types> && ...))
+      tuple(tuple<UTypes...>&& other) noexcept((std::is_nothrow_constructible_v<Types, UTypes> &&
+                                                ...))
+    requires(false)  // TODO
+      : _impl_storage(std::move(other)) {}
+
+  template <class... UTypes>
+  constexpr explicit(!(std::is_convertible_v<UTypes, Types> && ...))
+      tuple(tuple<UTypes...> const&& other)
+    requires(false)  // TODO
+      : _impl_storage(std::move(other)) {}
 
   //   template <class U1, class U2>
   //   constexpr explicit(true /* TODO*/) tuple(std::pair<U1, U2>&);  // only if
@@ -291,19 +299,95 @@ public:
   }
 
   // [tuple.assign], tuple assignment
-  //   constexpr tuple& operator=(const tuple&);
-  //   constexpr const tuple& operator=(const tuple&) const;
-  //   constexpr tuple& operator=(tuple&&) noexcept(true /* TODO */);
-  //   constexpr const tuple& operator=(tuple&&) const;
 
-  //   template <class... UTypes>
-  //   constexpr tuple& operator=(const tuple<UTypes...>&);
-  //   template <class... UTypes>
-  //   constexpr const tuple& operator=(const tuple<UTypes...>&) const;
-  //   template <class... UTypes>
-  //   constexpr tuple& operator=(tuple<UTypes...>&&);
-  //   template <class... UTypes>
-  //   constexpr const tuple& operator=(tuple<UTypes...>&&) const;
+  constexpr tuple& operator=(const tuple& other)
+    requires(std::ranges::all_of(_impl_accessor.types, std::meta::is_copy_assignable_type))
+  {
+    /// 
+    /// TODO: replace with
+    /// constexpr static auto [...Idx] = std::make_index_sequence<_impl_accessor.count>();
+    /// ((get<Idx>(*this) = get<Idx>(other)), ...); 
+    /// 
+    template for (constexpr auto el : _impl_accessor.members) {
+      this->_impl_storage.[:el:] = other._impl_storage.[:el:];
+    }
+    return *this;
+  }
+
+  constexpr const tuple& operator=(const tuple& other) const
+      noexcept(std::ranges::all_of(_impl_accessor.types,
+                                   std::meta::is_nothrow_copy_constructible_type))
+    requires(std::ranges::all_of(std::ranges::transform(_impl_accessor.types, std::meta::add_const),
+                                 std::meta::is_copy_assignable_type))
+  {
+    template for (constexpr auto el : _impl_accessor.members) {
+      this->_impl_storage.[:el:] = other._impl_storage.[:el:];
+    }
+    return *this;
+  }
+
+  constexpr tuple& operator=(tuple&& other) noexcept(
+      std::ranges::all_of(_impl_accessor.types, std::meta::is_nothrow_move_constructible_type))
+    requires(std::ranges::all_of(_impl_accessor.types,
+                                 std::meta::is_move_assignable_type))  // tuple.assign-8
+  {
+    this->_impl_storage = std::move(other._impl_storage);
+    return *this;
+  }
+
+  constexpr const tuple& operator=(tuple&& other) const
+    requires(std::ranges::all_of(std::ranges::transform(_impl_accessor.types, std::meta::add_const),
+                                 std::meta::is_assignable_type))  // tuple.assign-12
+  {
+    template for (constexpr auto el : define_static_array(
+                      nonstatic_data_members_of(^^storage_type,
+                                                std::meta::access_context::current()))) {
+      this->_impl_storage.[:el:] = std::move(other._impl_storage.[:el:]);
+    }
+    return *this;
+  }
+
+  template <class... UTypes>
+    requires(sizeof...(UTypes) == sizeof...(Types) &&
+             (std::is_assignable_v<Types&, UTypes const&> && ...))  // tuple-assign-15
+  constexpr tuple& operator=(const tuple<UTypes...>& other) {
+    template for (constexpr auto Idx : rsl::make_index_sequence<sizeof...(Types)>()) {
+      this->get<Idx>() = other.template get<Idx>();
+    }
+    return *this;
+  }
+
+  template <class... UTypes>
+    requires(sizeof...(UTypes) == sizeof...(Types) &&
+             (std::is_assignable_v<const Types&, const UTypes&> && ...))  // tuple-assign-18
+  constexpr const tuple& operator=(const tuple<UTypes...>& other) const {
+    template for (constexpr auto Idx : rsl::make_index_sequence<sizeof...(Types)>()) {
+      constexpr auto el          = _impl_accessor.members[Idx];
+      this->_impl_storage.[:el:] = other.template get<Idx>();
+    }
+    return *this;
+  }
+
+  template <class... UTypes>
+    requires(sizeof...(UTypes) == sizeof...(Types) &&
+             (std::is_assignable_v<Types&, UTypes> && ...))  // tuple-assign-21
+  constexpr tuple& operator=(tuple<UTypes...>&& other) {
+    template for (constexpr auto Idx : rsl::make_index_sequence<sizeof...(Types)>()) {
+      this->get<Idx>() = std::forward<UTypes...[Idx]>(other.template get<Idx>());
+    }
+    return *this;
+  }
+
+  template <class... UTypes>
+    requires(sizeof...(UTypes) == sizeof...(Types) &&
+             (std::is_assignable_v<const Types&, UTypes> && ...))  // tuple-assign-24
+  constexpr const tuple& operator=(tuple<UTypes...>&& other) const {
+    template for (constexpr auto Idx : rsl::make_index_sequence<sizeof...(Types)>()) {
+      constexpr auto el          = _impl_accessor.members[Idx];
+      this->_impl_storage.[:el:] = std::forward<UTypes...[Idx]>(other.template get<Idx>());
+    }
+    return *this;
+  }
 
   //   template <class U1, class U2>
   //   constexpr tuple& operator=(const std::pair<U1, U2>&);  // only if sizeof...(Types) == 2
