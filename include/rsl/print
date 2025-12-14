@@ -4,29 +4,10 @@
 #include <rsl/format>
 #include <rsl/style/terminal.hpp>
 
-#ifdef __unix__
-#include <unistd.h>
-#elif defined(_WIN32) || defined(WIN32) 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-#ifndef STDIN_FILENO
-  #define STDIN_FILENO _fileno(stdin)
-  #define STDOUT_FILENO _fileno(stdout)
-  #define STDERR_FILENO _fileno(stderr)
- #endif
-#else
-#error "Unsupported platform"
-#endif
+#include <rsl/_impl/platform/io.hpp>
 
 namespace rsl {
-bool isatty(int fd) {
-#if IS_WINDOWS
-  return bool(_isatty(fd));
-#else
-  return bool(::isatty(fd));
-#endif
-}
+using rsl::_impl_platform::isatty;
 
 template <typename... Args>
 void println(rsl::format_string<Args...> fmt, Args&&... args) {
