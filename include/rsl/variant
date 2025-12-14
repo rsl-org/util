@@ -14,6 +14,8 @@
 #include <rsl/_impl/member_cache.hpp>
 #include <rsl/_impl/index_of.hpp>
 
+#include <rsl/_impl/macro/attributes.hpp>
+
 namespace rsl {
 template <std::size_t, typename>
 struct variant_alternative;
@@ -157,14 +159,14 @@ struct VisitImpl {
   template <key_type Tag, std::size_t... Idx>
   struct Dispatch<Tag, std::index_sequence<Idx...>> {
     template <typename F, typename... U>
-    [[gnu::always_inline]]
+    RSL_INLINE(always)
     constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
       return std::forward<F>(visitor)(std::forward<U>(variants).template get_alt<Tag[Idx]>()...);
     }
   };
 
   template <std::size_t Idx, typename F, typename... U>
-  [[gnu::always_inline]]
+  RSL_INLINE(always)
   constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
     return Dispatch<key_type{Idx}>::visit(std::forward<F>(visitor), std::forward<U>(variants)...);
   }
@@ -176,7 +178,7 @@ struct VisitImpl<Variant> {
   static constexpr std::size_t max_index = variant_size<std::remove_cvref_t<Variant>>::value;
 
   template <std::size_t Idx, typename F, typename U>
-  [[gnu::always_inline]] constexpr static decltype(auto) visit(F&& visitor, U&& variant) {
+  RSL_INLINE(always) constexpr static decltype(auto) visit(F&& visitor, U&& variant) {
     return std::forward<F>(visitor)(std::forward<U>(variant).template get_alt<Idx>());
   }
 };
@@ -366,7 +368,8 @@ public:
     // Primary constructor
 
     std::construct_at(&_impl_storage, '\0');
-    std::construct_at(alternatives.template get_addr<Idx>(_impl_storage), std::forward<Args>(args)...);
+    std::construct_at(alternatives.template get_addr<Idx>(_impl_storage),
+                      std::forward<Args>(args)...);
   }
 
   template <std::size_t Idx, typename U, typename... Args>
@@ -416,8 +419,7 @@ public:
              std::assignable_from<typename[:alternatives.types[selected_index<T>]:]&, T> &&
              selected_index<T> != variant_npos)
   constexpr variant_base& operator=(T&& obj) noexcept(
-      is_nothrow_constructible_type(alternatives.types[selected_index<T>],
-                                    {remove_cvref(^^T)})) {
+      is_nothrow_constructible_type(alternatives.types[selected_index<T>], {remove_cvref(^^T)})) {
     emplace<selected_index<T>>(std::forward<T>(obj));
     return *this;
   }
@@ -441,7 +443,8 @@ public:
     static_assert(Idx < alternatives.count, "Alternative index out of bounds");
 
     reset();
-    std::construct_at(alternatives.template get_addr<Idx>(_impl_storage), std::forward<Args>(args)...);
+    std::construct_at(alternatives.template get_addr<Idx>(_impl_storage),
+                      std::forward<Args>(args)...);
     _impl_discriminator = Idx;
   }
 
@@ -743,8 +746,7 @@ constexpr decltype(auto) get(V&& variant_) {
 
 template <typename T, _variant_impl::has_get V>
 constexpr decltype(auto) get(V&& variant_) {
-  constexpr static std::size_t index =
-      variant_.alternatives.get_index_of(remove_cvref(^^T));
+  constexpr static std::size_t index = variant_.alternatives.get_index_of(remove_cvref(^^T));
   return rsl::get<index>(std::forward<V>(variant_));
 }
 
@@ -786,10 +788,10 @@ consteval std::meta::info make_storage() {
   union Storage;
   consteval {
     std::size_t idx = 0;
-    define_aggregate(^^Storage,
-                     {data_member_spec(^^char, {.name="_rsl_dummy"}),
-                    data_member_spec(remove_cvref(^^Ts), {.name= "_rsl_alt" + util::to_string(idx++)})...
-                    });
+    define_aggregate(
+        ^^Storage,
+        {data_member_spec(^^char, {.name = "_rsl_dummy"}),
+         data_member_spec(remove_cvref(^^Ts), {.name = "_rsl_alt" + util::to_string(idx++)})...});
   };
   return ^^Storage;
 }

@@ -6,18 +6,19 @@
 #include <algorithm>
 #include <ranges>
 
+#include <rsl/_impl/macro/attributes.hpp>
 
 namespace rsl::_impl {
 template <std::meta::info... Members>
 struct MemberAccessor {
   template <std::size_t Idx, typename S>
-  [[gnu::always_inline]]
+  RSL_INLINE(always)
   constexpr static decltype(auto) get(S&& storage) noexcept {
     return std::forward_like<S>(storage.[:Members...[Idx]:]);
   }
 
   template <std::size_t Idx, typename S>
-  [[gnu::always_inline]]
+  RSL_INLINE(always)
   constexpr static decltype(auto) get_addr(S&& storage) noexcept {
     return std::addressof(std::forward<S>(storage).[:Members...[Idx]:]);
   }

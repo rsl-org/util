@@ -5,10 +5,12 @@
 #include <type_traits>
 #include <memory>
 
+#include <rsl/utility>
+
 #include <rsl/_impl/index_of.hpp>
 #include <rsl/_impl/member_cache.hpp>
 #include <rsl/_impl/util/to_string.hpp>
-#include <rsl/utility>
+#include <rsl/_impl/macro/attributes.hpp>
 
 #ifndef RSL_STD_COMPAT
 #  define RSL_STD_COMPAT 1
@@ -92,23 +94,23 @@ concept is_implicitly_default_constructible = std::is_default_constructible_v<T>
 #ifdef __clang__
 template <typename T, std::size_t Idx>
 struct SubscriptElement {
-  constexpr decltype(auto) operator[](
-      std::size_t idx) & __attribute__((enable_if(idx == Idx, "index mismatch"))) {
+  constexpr decltype(auto) operator[](std::size_t idx) &
+      RSL_ENABLE_IF(idx == Idx, "index mismatch") {
     return get<Idx>(static_cast<T&>(*this));
   }
 
-  constexpr decltype(auto) operator[](
-      std::size_t idx) const& __attribute__((enable_if(idx == Idx, "index mismatch"))) {
+  constexpr decltype(auto) operator[](std::size_t idx) const& RSL_ENABLE_IF(idx == Idx,
+                                                                            "index mismatch") {
     return get<Idx>(static_cast<T const&>(*this));
   }
 
-  constexpr decltype(auto) operator[](
-      std::size_t idx) && __attribute__((enable_if(idx == Idx, "index mismatch"))) {
+  constexpr decltype(auto) operator[](std::size_t idx) &&
+      RSL_ENABLE_IF(idx == Idx, "index mismatch") {
     return get<Idx>(static_cast<T&&>(*this));
   }
 
-  constexpr decltype(auto) operator[](
-      std::size_t idx) const&& __attribute__((enable_if(idx == Idx, "index mismatch"))) {
+  constexpr decltype(auto) operator[](std::size_t idx) const&& RSL_ENABLE_IF(idx == Idx,
+                                                                             "index mismatch") {
     return get<Idx>(static_cast<T const&&>(*this));
   }
 };
@@ -121,7 +123,7 @@ struct Subscript<T, std::index_sequence<Idx...>> : SubscriptElement<T, Idx>... {
   using SubscriptElement<T, Idx>::operator[]...;
 
   static constexpr decltype(auto) operator[](std::size_t idx)
-      __attribute__((enable_if(idx >= sizeof...(Idx), "index mismatch"))) {
+      RSL_ENABLE_IF(idx >= sizeof...(Idx), "index mismatch") {
     std::unreachable();
   }
 };
@@ -160,7 +162,6 @@ private:
   using storage_type = StorageHolder<Types...>;
 
 public:
-
   storage_type _impl_storage;
   static constexpr auto _impl_accessor = [:_impl::cache_members(nonstatic_data_members_of(
                                                ^^storage_type,
@@ -303,11 +304,11 @@ public:
   constexpr tuple& operator=(const tuple& other)
     requires(std::ranges::all_of(_impl_accessor.types, std::meta::is_copy_assignable_type))
   {
-    /// 
+    ///
     /// TODO: replace with
     /// constexpr static auto [...Idx] = std::make_index_sequence<_impl_accessor.count>();
-    /// ((get<Idx>(*this) = get<Idx>(other)), ...); 
-    /// 
+    /// ((get<Idx>(*this) = get<Idx>(other)), ...);
+    ///
     template for (constexpr auto el : _impl_accessor.members) {
       this->_impl_storage.[:el:] = other._impl_storage.[:el:];
     }
