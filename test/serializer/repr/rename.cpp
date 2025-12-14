@@ -15,14 +15,14 @@ TEST(Rename, Fundamental) {
   }());
   ASSERT_TRUE(rsl::is_renamed(^^HasMemberWithRename::member));
   ASSERT_TRUE(rsl::is_renamed(^^HasMemberWithRename::preferred));
-  ASSERT_TRUE(!rsl::is_renamed(^^HasMemberWithRename::other));
+  ASSERT_FALSE(rsl::is_renamed(^^HasMemberWithRename::other));
 }
 
 TEST(Rename, TemplateArgument) {
   auto foo = []<rsl::rename R>() {
-    ASSERT_TRUE(R == rsl::rename("bar"));
-    ASSERT_TRUE(R != rsl::rename("baz"));
-    ASSERT_TRUE(R.value.data() == std::define_static_string("bar"));
+    ASSERT_EQ(R, rsl::rename("bar"));
+    ASSERT_NE(R, rsl::rename("baz"));
+    ASSERT_STREQ(R.value.data(), std::define_static_string("bar"));
   };
 
   foo.template operator()<rsl::rename("bar")>();

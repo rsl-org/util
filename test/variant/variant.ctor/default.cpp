@@ -28,24 +28,24 @@ TEST(DefaultCtor, Noexcept) {
 
   {
     constexpr rsl::variant<int> v(42);
-    ASSERT_TRUE((v.index() == 0));
-    ASSERT_EQ(rsl::get<0>(v), 42);
+    ASSERT_EQ(v.index(), 0);
+    ASSERT_EQ(get<0>(v), 42);
   }
   {
     constexpr rsl::variant<int, float> v(42);
-    ASSERT_TRUE((v.index() == 0));
-    ASSERT_EQ(rsl::get<0>(v), 42);
+    ASSERT_EQ(v.index(), 0);
+    ASSERT_EQ(get<0>(v), 42);
   }
   {
     constexpr rsl::variant<const int, float> v(42);
-    ASSERT_TRUE((v.index() == 0));
-    ASSERT_EQ(rsl::get<0>(v), 42);
+    ASSERT_EQ(v.index(), 0);
+    ASSERT_EQ(get<0>(v), 42);
   }
   {
     using V = rsl::variant<volatile int, float>;
     int x   = 42;
     V v(x);
-    ASSERT_TRUE((v.index() == 0));
-    ASSERT_EQ(rsl::get<0>(v), 42);
+    ASSERT_EQ(v.index(), 0);
+    ASSERT_EQ(get<0>(v), 42);
   }
 }

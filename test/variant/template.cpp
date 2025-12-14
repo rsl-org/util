@@ -29,13 +29,14 @@ struct WhoKnows {
   template <typename T>
   constexpr T get() {
     static_assert(hasOne<T>);
+    using rsl::get;
     template for (constexpr auto index :
                   construct_array(std::integer_sequence<int, 0, number_of_args - 1>())) {
       if constexpr (rsl::holds_alternative<T>(Args...[index])) {
-        return rsl::get<T>(Args...[index]);
+        return get<T>(Args...[index]);
       }
     }
-    return rsl::get<T>(Args...[0]);
+    return get<T>(Args...[0]);
   }
 };
 

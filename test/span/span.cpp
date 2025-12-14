@@ -69,7 +69,7 @@ TEST(span, At) {
     std::array arr{0, 1, 2, 3, 4, 5, 9084};
     rsl::span arrSpan{arr};
 
-    ASSERT_TRUE(std::dynamic_extent != arrSpan.extent);
+    ASSERT_NE(std::dynamic_extent, arrSpan.extent);
 
     using ReferenceT = typename decltype(arrSpan)::reference;
 
@@ -83,7 +83,7 @@ TEST(span, At) {
     std::vector vec{0, 1, 2, 3, 4, 5, 9084};
     rsl::span vecSpan{vec};
 
-    ASSERT_TRUE(std::dynamic_extent == vecSpan.extent);
+    ASSERT_EQ(std::dynamic_extent, vecSpan.extent);
 
     using ReferenceT = typename decltype(vecSpan)::reference;
 

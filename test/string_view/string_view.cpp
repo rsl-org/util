@@ -13,13 +13,13 @@ TEST(StringView, Size) {
 }
 
 TEST(StringView, Compare) {
-  ASSERT_TRUE(rsl::string_view() == rsl::string_view());
-  ASSERT_TRUE(rsl::string_view("a") == rsl::string_view("a"));
-  ASSERT_TRUE(rsl::string_view("a") != rsl::string_view());
-  ASSERT_TRUE(rsl::string_view("a") != rsl::string_view("b"));
+  ASSERT_EQ(rsl::string_view(), rsl::string_view());
+  ASSERT_EQ(rsl::string_view("a"), rsl::string_view("a"));
+  ASSERT_NE(rsl::string_view("a"), rsl::string_view());
+  ASSERT_NE(rsl::string_view("a"), rsl::string_view("b"));
 }
 
 TEST(StringView, Misc) {
-  ASSERT_TRUE(sizeof(rsl::string_view::value_type) == 1);
-  ASSERT_TRUE(rsl::string_view("a").max_size() == std::numeric_limits<size_t>::max());
+  ASSERT_EQ(sizeof(rsl::string_view::value_type), 1);
+  ASSERT_EQ(rsl::string_view("a").max_size(), std::numeric_limits<size_t>::max());
 }

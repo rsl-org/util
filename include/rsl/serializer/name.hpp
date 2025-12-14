@@ -32,7 +32,7 @@ template <>
 struct preferred_name<_impl::Annotated> {
   rsl::string_view value;
   consteval explicit preferred_name(std::string_view name) : value(define_static_string(name)) {}
-  consteval bool operator<=>(const preferred_name&) const = default;
+  constexpr bool operator<=>(const preferred_name&) const = default;
 };
 
 template <std::convertible_to<std::string_view> T>

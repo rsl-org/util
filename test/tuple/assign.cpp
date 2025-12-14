@@ -20,10 +20,10 @@ struct D : B {
 }  // namespace
 
 TEST(Tuple, Assign_traits) {
-  static_assert(!std::is_assignable_v<const rsl::tuple<int>&, const rsl::tuple<int>&>);
-  static_assert(std::is_assignable_v<const rsl::tuple<int&>&, const rsl::tuple<int&>&>);
-  static_assert(std::is_assignable_v<const rsl::tuple<int&, int&>&, const rsl::tuple<int&, int&>&>);
-  static_assert(!std::is_assignable_v<const rsl::tuple<int&, int>&, const rsl::tuple<int&, int>&>);
+  ASSERT_FALSE((std::is_assignable_v<const rsl::tuple<int>&, const rsl::tuple<int>&>));
+  ASSERT_TRUE((std::is_assignable_v<const rsl::tuple<int&>&, const rsl::tuple<int&>&>));
+  ASSERT_TRUE((std::is_assignable_v<const rsl::tuple<int&, int&>&, const rsl::tuple<int&, int&>&>));
+  ASSERT_FALSE((std::is_assignable_v<const rsl::tuple<int&, int>&, const rsl::tuple<int&, int>&>));
 }
 
 TEST(Tuple, Assign) {
@@ -42,10 +42,10 @@ TEST(Tuple, Assign) {
     T t(x, std::move(y));
     T t2(x2, std::move(y2));
     t = t2;
-    ASSERT_TRUE(rsl::get<0>(t) == x2);
-    ASSERT_TRUE(&rsl::get<0>(t) == &x);
-    ASSERT_TRUE(rsl::get<1>(t) == y2);
-    ASSERT_TRUE(&rsl::get<1>(t) == &y);
+    ASSERT_EQ(get<0>(t), x2);
+    ASSERT_EQ(&get<0>(t), &x);
+    ASSERT_EQ(get<1>(t), y2);
+    ASSERT_EQ(&get<1>(t), &y);
   }
   {
     int i1    = 1;
@@ -59,58 +59,58 @@ TEST(Tuple, Assign) {
     ASSERT_EQ(i2, 1);
     ASSERT_EQ(d1, 3.0);
     ASSERT_EQ(d2, 3.0);
-    ASSERT_EQ(rsl::get<0>(t2), 1);
-    ASSERT_EQ(rsl::get<1>(t2), 3.0);
+    ASSERT_EQ(get<0>(t2), 1);
+    ASSERT_EQ(get<1>(t2), 3.0);
   }
   {
     using T = rsl::tuple<MoveOnly>;
     T t0(MoveOnly(0));
     T t;
     t = std::move(t0);
-    ASSERT_EQ(rsl::get<0>(t).val, 0);
+    ASSERT_EQ(get<0>(t).val, 0);
   }
   {
     const rsl::tuple<ConstCopyAssign> t1{1};
     const rsl::tuple<ConstCopyAssign> t2{2};
     t2 = t1;
-    ASSERT_EQ(rsl::get<0>(t2).val, 1);
+    ASSERT_EQ(get<0>(t2).val, 1);
   }
   {
     rsl::tuple<ConstMoveAssign> t1{1};
     const rsl::tuple<ConstMoveAssign> t2{2};
     t2 = std::move(t1);
-    ASSERT_EQ(rsl::get<0>(t2).val, 1);
+    ASSERT_EQ(get<0>(t2).val, 1);
   }
   {
     using T = rsl::tuple<MoveOnly, MoveOnly>;
     T t0(MoveOnly(0), MoveOnly(1));
     T t;
     t = std::move(t0);
-    ASSERT_EQ(rsl::get<0>(t).val, 0);
-    ASSERT_EQ(rsl::get<1>(t).val, 1);
+    ASSERT_EQ(get<0>(t).val, 0);
+    ASSERT_EQ(get<1>(t).val, 1);
   }
   {
     using T = rsl::tuple<MoveOnly, MoveOnly, MoveOnly>;
     T t0(MoveOnly(0), MoveOnly(1), MoveOnly(2));
     T t;
     t = std::move(t0);
-    ASSERT_EQ(rsl::get<0>(t).val, 0);
-    ASSERT_EQ(rsl::get<1>(t).val, 1);
-    ASSERT_EQ(rsl::get<2>(t).val, 2);
+    ASSERT_EQ(get<0>(t).val, 0);
+    ASSERT_EQ(get<1>(t).val, 1);
+    ASSERT_EQ(get<2>(t).val, 2);
   }
   {
     rsl::tuple<TracedAssignment, const TracedAssignment> t1{};
     const rsl::tuple<TracedAssignment, const TracedAssignment> t2{};
     t2 = t1;
-    ASSERT_EQ(rsl::get<0>(t2).constCopyAssign, 1);
-    ASSERT_EQ(rsl::get<1>(t2).constCopyAssign, 1);
+    ASSERT_EQ(get<0>(t2).constCopyAssign, 1);
+    ASSERT_EQ(get<1>(t2).constCopyAssign, 1);
   }
   {
     rsl::tuple<TracedAssignment, const TracedAssignment> t1{};
     const rsl::tuple<TracedAssignment, const TracedAssignment> t2{};
     t2 = std::move(t1);
-    ASSERT_EQ(rsl::get<0>(t2).constMoveAssign, 1);
-    ASSERT_EQ(rsl::get<1>(t2).constCopyAssign, 1);
+    ASSERT_EQ(get<0>(t2).constMoveAssign, 1);
+    ASSERT_EQ(get<1>(t2).constCopyAssign, 1);
   }
 }
 
@@ -121,7 +121,7 @@ TEST(Tuple, ConvertingAssign) {
     T0 t0(2);
     T1 t1;
     t1 = t0;
-    ASSERT_EQ(rsl::get<0>(t1), 2);
+    ASSERT_EQ(get<0>(t1), 2);
   }
 
   {
@@ -130,8 +130,8 @@ TEST(Tuple, ConvertingAssign) {
     T0 t0(2, 'a');
     T1 t1;
     t1 = t0;
-    ASSERT_EQ(rsl::get<0>(t1), 2);
-    ASSERT_EQ(rsl::get<1>(t1), int('a'));
+    ASSERT_EQ(get<0>(t1), 2);
+    ASSERT_EQ(get<1>(t1), 'a');
   }
   {
     using T0 = rsl::tuple<long, char, D>;
@@ -139,9 +139,9 @@ TEST(Tuple, ConvertingAssign) {
     T0 t0(2, 'a', D(3));
     T1 t1;
     t1 = t0;
-    assert(rsl::get<0>(t1) == 2);
-    assert(rsl::get<1>(t1) == int('a'));
-    assert(rsl::get<2>(t1).id_ == 3);
+    ASSERT_EQ(get<0>(t1), 2);
+    ASSERT_EQ(get<1>(t1), 'a');
+    ASSERT_EQ(get<2>(t1).id_, 3);
   }
   {
     D d(3);
@@ -151,9 +151,9 @@ TEST(Tuple, ConvertingAssign) {
     T0 t0(2, 'a', d2);
     T1 t1(1, 'b', d);
     t1 = t0;
-    ASSERT_EQ(rsl::get<0>(t1), 2);
-    ASSERT_EQ(rsl::get<1>(t1), int('a'));
-    ASSERT_EQ(rsl::get<2>(t1).id_, 2);
+    ASSERT_EQ(get<0>(t1), 2);
+    ASSERT_EQ(get<1>(t1), 'a');
+    ASSERT_EQ(get<2>(t1).id_, 2);
   }
   {
     // Test that tuple evaluates correctly applies an lvalue reference
@@ -164,8 +164,8 @@ TEST(Tuple, ConvertingAssign) {
     rsl::tuple<int&&> t(std::move(x));
     rsl::tuple<int&> t2(y);
     t = t2;
-    ASSERT_TRUE(rsl::get<0>(t) == 43);
-    ASSERT_TRUE(&rsl::get<0>(t) == &x);
+    ASSERT_EQ(get<0>(t), 43);
+    ASSERT_EQ(&get<0>(t), &x);
   }
   {
     using T0 = rsl::tuple<long>;
@@ -173,7 +173,7 @@ TEST(Tuple, ConvertingAssign) {
     T0 t0(2);
     T1 t1;
     t1 = std::move(t0);
-    assert(std::get<0>(t1) == 2);
+    ASSERT_EQ(get<0>(t1), 2);
   }
   {
     using T0 = rsl::tuple<long, char>;
@@ -181,8 +181,8 @@ TEST(Tuple, ConvertingAssign) {
     T0 t0(2, 'a');
     T1 t1;
     t1 = std::move(t0);
-    ASSERT_EQ(rsl::get<0>(t1), 2);
-    ASSERT_EQ(rsl::get<1>(t1), int('a'));
+    ASSERT_EQ(get<0>(t1), 2);
+    ASSERT_EQ(get<1>(t1), 'a');
   }
 
   {
@@ -193,22 +193,22 @@ TEST(Tuple, ConvertingAssign) {
     const rsl::tuple<int&, int&> t1{i1, i2};
     const rsl::tuple<long&, long&> t2{j1, j2};
     t2 = t1;
-    ASSERT_EQ(rsl::get<0>(t2), 1);
-    ASSERT_EQ(rsl::get<1>(t2), 2);
+    ASSERT_EQ(get<0>(t2), 1);
+    ASSERT_EQ(get<1>(t2), 2);
   }
 
   {
     const rsl::tuple<ConstCopyAssign> t1{1};
     const rsl::tuple<AssignableFrom<ConstCopyAssign>> t2{2};
     t2 = t1;
-    ASSERT_EQ(rsl::get<0>(t2).v.val, 1);
+    ASSERT_EQ(get<0>(t2).v.val, 1);
   }
 
   {
     rsl::tuple<TracedAssignment> t1{};
     const rsl::tuple<AssignableFrom<TracedAssignment>> t2{};
     t2 = t1;
-    ASSERT_EQ(rsl::get<0>(t2).v.constCopyAssign, 1);
+    ASSERT_EQ(get<0>(t2).v.constCopyAssign, 1);
   }
 
   {
@@ -219,21 +219,21 @@ TEST(Tuple, ConvertingAssign) {
     rsl::tuple<int&, int&> t1{i1, i2};
     const rsl::tuple<long&, long&> t2{j1, j2};
     t2 = std::move(t1);
-    ASSERT_EQ(rsl::get<0>(t2), 1);
-    ASSERT_EQ(rsl::get<1>(t2), 2);
+    ASSERT_EQ(get<0>(t2), 1);
+    ASSERT_EQ(get<1>(t2), 2);
   }
 
   {
     rsl::tuple<ConstMoveAssign> t1{1};
     const rsl::tuple<AssignableFrom<ConstMoveAssign>> t2{2};
     t2 = std::move(t1);
-    ASSERT_EQ(rsl::get<0>(t2).v.val, 1);
+    ASSERT_EQ(get<0>(t2).v.val, 1);
   }
 
   {
     rsl::tuple<TracedAssignment> t1{};
     const rsl::tuple<AssignableFrom<TracedAssignment>> t2{};
     t2 = std::move(t1);
-    ASSERT_EQ(rsl::get<0>(t2).v.constMoveAssign, 1);
+    ASSERT_EQ(get<0>(t2).v.constMoveAssign, 1);
   }
 }
