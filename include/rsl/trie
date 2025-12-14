@@ -23,8 +23,7 @@ struct State {
   rsl::string_view prefix;
   int word_index;
 
-  RSL_INLINE(always)
-  constexpr int visit(std::string_view str) const {
+  $inline(always) constexpr int visit(std::string_view str) const {
     // assumes the prefix is never empty
     //? empty prefixes are only allowed at the root note
     if (str.empty() || str[0] != prefix[0] || str.size() < prefix.size()) {

@@ -159,15 +159,13 @@ struct VisitImpl {
   template <key_type Tag, std::size_t... Idx>
   struct Dispatch<Tag, std::index_sequence<Idx...>> {
     template <typename F, typename... U>
-    RSL_INLINE(always)
-    constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
+    $inline(always) constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
       return std::forward<F>(visitor)(std::forward<U>(variants).template get_alt<Tag[Idx]>()...);
     }
   };
 
   template <std::size_t Idx, typename F, typename... U>
-  RSL_INLINE(always)
-  constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
+  $inline(always) constexpr static decltype(auto) visit(F&& visitor, U&&... variants) {
     return Dispatch<key_type{Idx}>::visit(std::forward<F>(visitor), std::forward<U>(variants)...);
   }
 };
@@ -178,7 +176,7 @@ struct VisitImpl<Variant> {
   static constexpr std::size_t max_index = variant_size<std::remove_cvref_t<Variant>>::value;
 
   template <std::size_t Idx, typename F, typename U>
-  RSL_INLINE(always) constexpr static decltype(auto) visit(F&& visitor, U&& variant) {
+  $inline(always) constexpr static decltype(auto) visit(F&& visitor, U&& variant) {
     return std::forward<F>(visitor)(std::forward<U>(variant).template get_alt<Idx>());
   }
 };
