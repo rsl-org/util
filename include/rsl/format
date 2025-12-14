@@ -1,6 +1,6 @@
 #pragma once
-#include "_format_impl/fmt_parser.hpp"
-#include "_format_impl/style.hpp"
+#include "_impl/format/fmt_parser.hpp"
+#include "_impl/format/style.hpp"
 
 namespace rsl {
 namespace _format_impl {

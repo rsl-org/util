@@ -9,7 +9,7 @@
 #include <rsl/string_view>
 #include <rsl/span>
 
-#include <rsl/util/to_string.hpp>
+#include <rsl/_impl/util/to_string.hpp>
 #include <rsl/_impl/parser.hpp>
 
 #include "accessor.hpp"

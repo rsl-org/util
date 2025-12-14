@@ -10,8 +10,8 @@
 #include <rsl/meta_traits>
 
 #include <rsl/_impl/concepts.hpp>
-#include <rsl/util/operators.hpp>
-#include <rsl/util/to_string.hpp>
+#include <rsl/_impl/util/operators.hpp>
+#include <rsl/_impl/util/to_string.hpp>
 
 namespace rsl::_expect_impl {
 template <typename T>
