@@ -2,6 +2,8 @@
 #include <cstddef>
 #include <utility>
 
+// TODO we should do this reflectively instead. The used trick is neat, but not necessary anymore
+
 namespace rsl::_impl {
 namespace _typelist_impl {
 template <std::size_t Idx, typename T>
