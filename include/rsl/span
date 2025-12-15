@@ -358,7 +358,8 @@ public:
 
   template <std::size_t Offset, std::size_t Count = dynamic_extent>
   constexpr span<element_type, Count> subspan() const noexcept {
-    return span<element_type, Count>{data() + Offset, Count == dynamic_extent ? size() - Offset : Count};
+    return span<element_type, Count>{data() + Offset,
+                                     Count == dynamic_extent ? size() - Offset : Count};
   }
 
   //! non-standard extension: these members are public to make `span` a structural type

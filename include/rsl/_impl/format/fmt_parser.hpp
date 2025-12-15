@@ -39,7 +39,7 @@ struct FormatResult {
     return result;
   }
 
-  FormatResult(std::string result, join_t joiner) : raw(result), join(joiner) {}
+  FormatResult(std::string result, join_t joiner) : raw(std::move(result)), join(joiner) {}
 
   std::string raw;
   [[nodiscard]] std::string with_style(StyleMap const& style) const {
@@ -52,7 +52,7 @@ struct FormatResult {
 template <rsl::string_view fmt, typename Accessors, std::meta::info Joiner, typename... Args>
 FormatResult format_impl(Args&&... args) {
   auto str = [&]<typename... Xs>(AccessorList<Xs...>) {
-    return std::format(fmt.data(), Xs::get(args...[Xs::index])...);
+    return std::format(fmt.data(), Xs::get(std::forward<Args...[Xs::index]>(args...[Xs::index]))...);
   }(Accessors{});
   return FormatResult(str, extract<FormatResult::join_t>(Joiner));
 }
@@ -225,7 +225,7 @@ struct FormatParser : _impl::Parser {
 
   constexpr void push_text(int start, int end) { result.string += data.substr(start, end - start); }
 
-  consteval std::meta::info get_arg_accessor(std::size_t index) {
+  consteval static std::meta::info get_arg_accessor(std::size_t index) {
     return substitute(^^Accessor, {std::meta::reflect_constant(index)});
   }
 

@@ -304,7 +304,10 @@ public:
   constexpr tuple& operator=(const tuple& other)
     requires(std::ranges::all_of(_impl_accessor.types, std::meta::is_copy_assignable_type))
   {
-    ///
+    if (this == &other) {
+      return *this;
+    }
+
     /// TODO: replace with
     /// constexpr static auto [...Idx] = std::make_index_sequence<_impl_accessor.count>();
     /// ((get<Idx>(*this) = get<Idx>(other)), ...);
@@ -374,7 +377,7 @@ public:
              (std::is_assignable_v<Types&, UTypes> && ...))  // tuple-assign-21
   constexpr tuple& operator=(tuple<UTypes...>&& other) {
     template for (constexpr auto Idx : rsl::make_index_sequence<sizeof...(Types)>()) {
-      this->get<Idx>() = std::forward<UTypes...[Idx]>(other.template get<Idx>());
+      this->get<Idx>() = std::move(other).template get<Idx>();
     }
     return *this;
   }
@@ -385,7 +388,7 @@ public:
   constexpr const tuple& operator=(tuple<UTypes...>&& other) const {
     template for (constexpr auto Idx : rsl::make_index_sequence<sizeof...(Types)>()) {
       constexpr auto el          = _impl_accessor.members[Idx];
-      this->_impl_storage.[:el:] = std::forward<UTypes...[Idx]>(other.template get<Idx>());
+      this->_impl_storage.[:el:] = std::move(other).template get<Idx>();
     }
     return *this;
   }
@@ -441,8 +444,8 @@ constexpr tuple<TTypes&...> tie(TTypes&... values) noexcept {
 //! non-standard extension
 template <_tuple_impl::is_rsl_tuple R, _tuple_impl::is_rsl_tuple L>
 constexpr auto operator+(R&& rhs, L&& lhs) {
-  auto&& [... rhs_members] = rhs;
-  auto&& [... lhs_members] = lhs;
+  auto&& [... rhs_members] = std::forward<R>(rhs);
+  auto&& [... lhs_members] = std::forward<L>(lhs);
   return tuple<std::remove_cvref_t<decltype(rhs_members)>...,
                std::remove_cvref_t<decltype(lhs_members)>...>(std::forward_like<R>(rhs_members)...,
                                                               std::forward_like<L>(lhs_members)...);
@@ -461,7 +464,7 @@ constexpr auto tuple_cat(Tuples&&... tuples) {
 namespace _tuple_impl {
 template <class F, _tuple_impl::tuple_like Tuple>
 consteval bool is_nothrow_apply(F&& f, Tuple&& t) {
-  auto&& [... args] = t;
+  auto&& [... args] = std::forward<Tuple>(t);
   return noexcept(std::invoke(std::forward<F>(f), std::forward_like<Tuple>(args)...));
 }
 }  // namespace _tuple_impl
@@ -469,13 +472,13 @@ consteval bool is_nothrow_apply(F&& f, Tuple&& t) {
 template <class F, _tuple_impl::tuple_like Tuple>
 constexpr decltype(auto) apply(F&& f, Tuple&& t) noexcept(
     _tuple_impl::is_nothrow_apply(std::forward<F>(f), std::forward<Tuple>(t))) {
-  auto&& [... args] = t;
+  auto&& [... args] = std::forward<Tuple>(t);
   return std::invoke(std::forward<F>(f), std::forward_like<Tuple>(args)...);
 }
 
 template <class T, _tuple_impl::tuple_like Tuple>
 constexpr T make_from_tuple(Tuple&& t) {
-  auto&& [... members] = t;
+  auto&& [... members] = std::forward<Tuple>(t);
   return {std::forward_like<Tuple>(members)...};
 }
 

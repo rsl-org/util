@@ -81,10 +81,10 @@ constexpr void assert_violation(std::source_location sloc,
     rsl::compile_error(msg, sloc);
   } else {
     auto diagnostic = header + message + '\n';
-    fputs(diagnostic.c_str(), stderr);
+    (void)fputs(diagnostic.c_str(), stderr);
 
     auto evaluated = header + "expression evaluated to: " + condition.to_string("") + " => false\n";
-    fputs(evaluated.c_str(), stderr);
+    (void)fputs(evaluated.c_str(), stderr);
     std::abort();
   }
 }

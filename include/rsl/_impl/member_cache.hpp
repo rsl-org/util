@@ -4,7 +4,6 @@
 #include <memory>
 #include <meta>
 #include <algorithm>
-#include <ranges>
 
 #include <rsl/_impl/macro/attributes.hpp>
 

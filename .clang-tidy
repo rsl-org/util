@@ -27,8 +27,13 @@ Checks: "*,
         -misc-use-internal-linkage,
         -cppcoreguidelines-noexcept-move-operations,
         -hicpp-noexcept-move,
-        -performance-noexcept-move-constructor
+        -performance-noexcept-move-constructor,
+        -cppcoreguidelines-use-enum-class,
+        -portability-avoid-pragma-once,
+        -performance-enum-size,
+        -cppcoreguidelines-macro-usage,
+        -misc-no-recursion
 "
 WarningsAsErrors: ''
-HeaderFilterRegex: ''
+HeaderFilterRegex: '.*/rsl/.*'
 FormatStyle:     none

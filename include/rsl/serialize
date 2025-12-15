@@ -11,14 +11,14 @@ namespace rsl {
 using serializer::NameMode;
 using serializer::preferred_name;
 
+using serializer::fully_qualified_name;
+using serializer::fully_qualified_name_of;
+using serializer::name_of;
+using serializer::qualified_name;
+using serializer::qualified_name_of;
 using serializer::type_name;
 using serializer::unqualified_name;
-using serializer::qualified_name;
-using serializer::fully_qualified_name;
-using serializer::name_of;
 using serializer::unqualified_name_of;
-using serializer::qualified_name_of;
-using serializer::fully_qualified_name_of;
 
 template <typename T>
 using to_owning = typename serializer::Meta<T>::owning_type;

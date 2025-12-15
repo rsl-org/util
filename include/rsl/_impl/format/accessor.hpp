@@ -1,6 +1,5 @@
 #pragma once
 #include <utility>
-#include <tuple>
 #include <meta>
 
 namespace rsl::_format_impl {

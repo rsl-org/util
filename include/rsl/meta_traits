@@ -72,7 +72,6 @@ consteval bool has_parent(std::meta::info R) {
   return R != ^^::;
 }
 
-
 template <typename T, std::meta::info Template>
 concept specializes = is_specialization(^^T, Template);
 

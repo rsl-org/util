@@ -21,7 +21,7 @@ namespace _trie_impl {
 template <auto... Transitions>
 struct State {
   rsl::string_view prefix;
-  int word_index;
+  int word_index{};
 
   $inline(always) constexpr int visit(std::string_view str) const {
     // assumes the prefix is never empty
@@ -102,11 +102,11 @@ struct ParsedState {
         });
 
         if (it == node->transitions.end()) {
-          int word_idx = std::ranges::distance(words.begin(), std::ranges::find(words, word)) + 1;
+          auto word_idx = std::ranges::distance(words.begin(), std::ranges::find(words, word)) + 1;
 
           node->transitions.emplace_back(std::string(word.substr(i)),
                                          std::vector<ParsedState>{
-                                             {"", {}, {}, word_idx}
+                                             {"", {}, {}, static_cast<int>(word_idx)}
           });
           break;
         }

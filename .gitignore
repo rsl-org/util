@@ -53,3 +53,4 @@
 .devcontainer
 
 lib/
+clang-tidy/

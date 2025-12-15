@@ -13,8 +13,7 @@ constexpr inline FlagEnumTag flag_enum;
 }  // namespace annotations
 
 template <typename T>
-concept is_flag_enum =
-    std::is_enum_v<T> && meta::has_annotation(^^T, ^^annotations::FlagEnumTag);
+concept is_flag_enum = std::is_enum_v<T> && meta::has_annotation(^^T, ^^annotations::FlagEnumTag);
 
 template <typename T>
 concept is_fixed_enum = std::is_enum_v<T> and requires { T{0}; };
@@ -60,8 +59,9 @@ private:
     using unsigned_underlying = std::make_unsigned_t<underlying>;
 
     if (range.min < 0) {
-      auto min_val = static_cast<unsigned_underlying>(~range.min);
-      auto max_val = static_cast<unsigned_underlying>(range.max < 0 ? ~range.max : range.max);
+      auto min_val = static_cast<unsigned_underlying>(~static_cast<unsigned_underlying>(range.min));
+      auto max_val = static_cast<unsigned_underlying>(
+          range.max < 0 ? ~static_cast<unsigned_underlying>(range.max) : range.max);
       return 1 + std::max(std::bit_width(min_val), std::bit_width(max_val));
     }
     return std::max(1, std::bit_width(unsigned_underlying(range.max)));

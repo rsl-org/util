@@ -29,7 +29,7 @@ struct Style {
 
 struct StyleMap {
   virtual ~StyleMap() = default;
-  virtual std::string_view operator[](Style::Tag tag) const { return ""; }
+  virtual std::string_view operator[](Style::Tag) const { return ""; }
 };
 
 }  // namespace rsl::_format_impl

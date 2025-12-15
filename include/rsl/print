@@ -19,4 +19,4 @@ void println(rsl::format_string<Args...> fmt, Args&&... args) {
     std::puts(result.unstyled().c_str());
   }
 }
-}
+}  // namespace rsl

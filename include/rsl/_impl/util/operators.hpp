@@ -108,6 +108,7 @@ constexpr std::meta::operators to_operator(std::string_view text) {
     case hash("++"): return op_plus_plus;
     case hash("--"): return op_minus_minus;
     case hash(","): return op_comma;
+    default: return {};
   }
   return {};
 }

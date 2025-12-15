@@ -20,7 +20,7 @@
 #endif
 
 namespace rsl::_impl_platform {
-bool isatty(int fd) {
+inline bool isatty(int fd) {
 #if __unix__
   return bool(::isatty(fd));
 #else

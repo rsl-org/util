@@ -12,7 +12,7 @@ consteval std::meta::info current_scope(
 }
 
 template <std::size_t N>
-constexpr static auto&& seq = [:std::meta::reflect_constant_array(std::views::iota(0ZU, N)):];
+constexpr auto const&& seq = [:std::meta::reflect_constant_array(std::views::iota(0ZU, N)):];
 
 template <typename T, T... Is>
 struct integer_sequence {

@@ -19,10 +19,13 @@ struct source_location {
       , line(sloc.line())
       , column(sloc.column()) {}
 
-  explicit source_location(rsl::string_view file, rsl::string_view function, std::size_t line, std::size_t column = 0)
-  : file(file)
-  , function(function)
-  , line(line)
-  , column(column) {}
+  explicit source_location(rsl::string_view file,
+                           rsl::string_view function,
+                           std::size_t line,
+                           std::size_t column = 0)
+      : file(file)
+      , function(function)
+      , line(line)
+      , column(column) {}
 };
 }  // namespace rsl

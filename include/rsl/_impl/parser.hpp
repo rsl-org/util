@@ -30,9 +30,9 @@ struct Parser {
 
   explicit constexpr Parser(std::string_view data) : data(data) {}
 
-  constexpr bool is_valid() const { return cursor >= 0 && cursor < data.size(); }
-  constexpr char current() const { return is_valid() ? data[cursor] : '\0'; }
-  constexpr char peek() const {
+  [[nodiscard]] constexpr bool is_valid() const { return cursor >= 0 && cursor < data.size(); }
+  [[nodiscard]] constexpr char current() const { return is_valid() ? data[cursor] : '\0'; }
+  [[nodiscard]] constexpr char peek() const {
     return (is_valid() && cursor + 1 < data.size()) ? data[cursor + 1] : '\0';
   }
 
@@ -68,4 +68,4 @@ struct Parser {
     }
   }
 };
-}  // namespace rsl::_format_impl
+}  // namespace rsl::_impl
