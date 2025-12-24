@@ -1,11 +1,11 @@
 #pragma once
 #include <gtest/gtest.h>
-#include <common/type_name.h>
 #include <common/qualifiers.h>
 
 template <typename T>
 constexpr std::string_view hash_type() {
-  return nameof<T>;
+  // TODO: use __FUNCSIG__ for MSVC
+  return __PRETTY_FUNCTION__;
 }
 
 template <std::size_t N>
