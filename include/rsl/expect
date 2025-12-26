@@ -102,28 +102,6 @@ struct BinaryExpr {
     return eval_operator(descend(std::forward_like<T>(lhs)), descend(std::forward_like<T>(rhs)));
   }
 
-  template <typename T>
-  constexpr auto eval_verbose(T&& args, std::vector<std::string>& failed_terms) const {
-    auto descend = [&](auto&& obj) {
-      constexpr auto evaluatable = requires {
-        { obj.eval_verbose(std::forward<T>(args), failed_terms) } -> _impl::is_non_void;
-      };
-
-      if constexpr (evaluatable) {
-        return obj.eval_verbose(std::forward<T>(args), failed_terms);
-      } else {
-        return obj;
-      }
-    };
-
-    auto result =
-        eval_operator(descend(std::forward_like<T>(lhs)), descend(std::forward_like<T>(rhs)));
-    if (!result) {
-      failed_terms.push_back(to_string(args));
-    }
-    return result;
-  }
-
   constexpr std::string to_string(auto const& args) const {
     // TODO constexpr
     static constexpr bool rhs_printable = requires {
@@ -295,11 +273,6 @@ struct Placeholder {
   }
 
   template <typename T>
-  constexpr auto eval_verbose(T&& args, std::vector<std::string>& failed_terms) const {
-    return eval(std::forward<T>(args));
-  }
-
-  template <typename T>
   constexpr std::string to_string(T&& args) const {
     // TODO constexpr
     if constexpr (requires {
@@ -360,10 +333,6 @@ struct Wrapped {
   T value;
   constexpr decltype(auto) eval(auto const& args) const { return value; }
 
-  constexpr auto eval_verbose(auto const& args, std::vector<std::string>& failed_terms) const {
-    return eval(args);
-  }
-
   constexpr std::string to_string(auto const& args) const { return util::to_string(value); }
 
   constexpr std::string to_string(std::vector<std::string_view> const& replacements) const {
@@ -376,13 +345,10 @@ struct Lazy {
   F callable;
   std::tuple<Args...> arguments;
 
-  template <std::size_t Idx, bool verbose = false>
-  constexpr decltype(auto) expand_args(auto const& args,
-                                       std::vector<std::string>& failed_terms) const {
+  template <std::size_t Idx>
+  constexpr decltype(auto) expand_args(auto const& args) const {
     using wrapped_t = Args...[Idx];
-    if constexpr (verbose && requires(wrapped_t obj) { obj.eval_verbose(args, failed_terms); }) {
-      return get<Idx>(arguments).eval_verbose(args, failed_terms);
-    } else if constexpr (requires(wrapped_t obj) { obj.eval(args); }) {
+    if constexpr (requires(wrapped_t obj) { obj.eval(args); }) {
       return get<Idx>(arguments).eval(args);
     } else {
       return get<Idx>(arguments);
@@ -393,10 +359,6 @@ struct Lazy {
     return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {
       return callable(expand_args<Idx>(args)...);
     }(std::make_index_sequence<sizeof...(Args)>());
-  }
-
-  constexpr auto eval_verbose(auto const& args, std::vector<std::string>& failed_terms) const {
-    return eval(args);
   }
 
   constexpr std::string to_string(auto const& args) const { return "<lazy call>"; }
