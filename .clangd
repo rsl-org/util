@@ -1,0 +1,9 @@
+CompileFlags:
+  CompilationDatabase: build/Debug/
+  Remove:
+    # sometimes added if files aren't recognized - remove
+    - -xobjective-c++-header
+  Add:
+    - -std=c++26
+    - -freflection-latest
+    - -xc++-header
