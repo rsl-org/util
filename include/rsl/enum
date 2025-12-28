@@ -4,6 +4,8 @@
 #include <type_traits>
 #include <utility>
 #include <rsl/meta_traits>
+#include <rsl/_impl/_config.h>
+
 
 namespace rsl {
 inline namespace annotations {
@@ -197,12 +199,6 @@ constexpr bool in_range(U value) noexcept {
                                 static_cast<underlying>(numeric_limits<T>::min()));
 }
 }  // namespace rsl
-
-#ifdef RSL_POISON_STD
-template <typename E>
-  requires std::is_enum_v<E>
-struct std::numeric_limits<E> : rsl::numeric_limits<E> {};
-#endif
 
 template <rsl::is_flag_enum E>
   requires std::is_scoped_enum_v<E>

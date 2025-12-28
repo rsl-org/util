@@ -1,0 +1,29 @@
+#pragma once
+#include <rsl/_impl/macro/attributes.hpp>
+#include <rsl/_impl/macro/compiler.hpp>
+#include <rsl/_impl/macro/opt.hpp>
+#include <rsl/_impl/macro/os.hpp>
+
+// compile environment checks
+
+/**
+ * @param compiler: one of UNKNOWN, CLANG, GCC, MSVC
+ */
+#define $compiler_is(compiler) (RSL_COMPILER == RSL_COMPILER_##compiler)
+
+/**
+ * @param stdlib: one of UNKNOWN, LIBCXX, GLIBCXX, MSVC
+ */
+#define $stdlib_is(stdlib) (RSL_STDLIB == RSL_STDLIB_##stdlib)
+
+/**
+ * @param os: one of UNKNOWN, WINDOWS, LINUX, MAC, FREEBSD, ANDROID, IOS
+ */
+#define $os_is(os) (RSL_OS == RSL_OS_##os)
+
+// feature macro helper
+#define $uses_opt(x) USES_OPT(x)
+
+// attributes
+#define $inline(...)    RSL_INLINE(__VA_ARGS__)
+#define $enable_if(...) RSL_ENABLE_IF(__VA_ARGS__)

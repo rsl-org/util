@@ -8,14 +8,6 @@
 
 #define RSL_VERSION_ENCODE(major, minor, patch) ((major) * 1000000 + (minor) * 1000 + (patch))
 
-#ifndef __has_attribute
-#  define __has_attribute(x) 0
-#endif
-
-#ifndef __has_cpp_attribute
-#  define __has_cpp_attribute(x) 0
-#endif
-
 #if defined(__clang__)
 #  define RSL_COMPILER RSL_COMPILER_CLANG
 #  define RSL_COMPILER_VERSION \

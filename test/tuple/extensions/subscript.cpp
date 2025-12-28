@@ -1,4 +1,5 @@
-#ifdef __clang__
+#include <rsl/macro>
+#if $compiler_is(CLANG)
 
 #include <gtest/gtest.h>
 #include <common/assertions.h>
