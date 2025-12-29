@@ -10,7 +10,7 @@
 #include <rsl/meta_traits>
 #include <rsl/serialize>
 
-#include <rsl/_impl/concepts.hpp>
+#include <rsl/_impl/traits.hpp>
 #include <rsl/_impl/serialize/operators.hpp>
 
 namespace rsl::_expect_impl {
