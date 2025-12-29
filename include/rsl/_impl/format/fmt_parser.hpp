@@ -8,8 +8,8 @@
 
 #include <rsl/string_view>
 #include <rsl/span>
+#include <rsl/serialize>
 
-#include <rsl/_impl/util/to_string.hpp>
 #include <rsl/_impl/parser.hpp>
 
 #include "accessor.hpp"
@@ -119,7 +119,7 @@ struct Replacement final : _impl::Parser {
     }
 
     out.string += '{';
-    out.string += _impl::utos(index);
+    out.string += to_string(index);
     if (!specs.empty()) {
       out.string += ":";
       out.string += specs;
@@ -189,7 +189,7 @@ struct Replacement final : _impl::Parser {
       type = remove_cvref(type);
       std::meta::info accessor{};
       if (std::ranges::all_of(subfield, _impl::is_digit)) {
-        index = _impl::stou(std::string_view{subfield});
+        index = _serialize_impl::stou(std::string_view{subfield});
         if (is_subscriptable(type)) {
           // member access by subscript operator
           type     = substitute(^^subscript_result, {type});
@@ -273,7 +273,7 @@ struct FormatParser : _impl::Parser {
         } break;
         case ReplacementType::indexed: {
           has_positional = true;
-          index          = _impl::stou(replacement.field);
+          index          = _serialize_impl::stou(replacement.field);
           if (direct[index] == -1) {
             result.accessors.push_back(get_arg_accessor(index));
             direct[index] = int(result.accessors.size() - 1);
@@ -289,7 +289,7 @@ struct FormatParser : _impl::Parser {
               throw "implicit 0. not allowed with more than one arg";
             }
           } else {
-            index             = _impl::stou(replacement.field.substr(0, dot_pos));
+            index             = _serialize_impl::stou(replacement.field.substr(0, dot_pos));
             replacement.field = replacement.field.substr(dot_pos + 1);
           }
           result.accessors.push_back(replacement.get_accessor(index, arg_types[index]));

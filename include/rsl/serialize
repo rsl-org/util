@@ -4,8 +4,9 @@
 #include <rsl/meta_traits>
 
 #include <rsl/enum>  // for to_string(enum-type)
-#include <rsl/_impl/util/operators.hpp>
-#include <rsl/_impl/util/to_string.hpp>
+#include <rsl/_impl/serialize/operators.hpp>
+#include <rsl/_impl/serialize/to_string.hpp>
+#include <rsl/_impl/serialize/enum.hpp>
 
 #include "serializer/machinery.hpp"
 #include "serializer/name.hpp"
@@ -48,10 +49,10 @@ consteval std::meta::info deserialize_type(T&& deserializer, R&& data) {
 constexpr std::string to_string(std::integral auto value) {
   if constexpr (std::is_signed_v<decltype(value)>) {
     if (value < 0) {
-      return std::string{'-'} + _impl::utos(-value);
+      return std::string{'-'} + _serialize_impl::utos(-value);
     }
   }
-  return _impl::utos(value);
+  return _serialize_impl::utos(value);
 }
 
 // can this be constexpr? fpenv?
@@ -73,7 +74,52 @@ constexpr std::string to_string(std::string_view value) {
 }
 
 constexpr std::string to_string(std::meta::operators op) {
-  return ::rsl::_impl::op_to_string(op);
+  return _serialize_impl::op_to_string(op);
+}
+
+template <typename T>
+  requires std::is_enum_v<T>
+constexpr std::string to_string(T value) {
+  if constexpr (is_flag_enum<T>) {
+    // for flag-likes we want to support `A | B` unless we got exact match
+    constexpr static auto enums = std::define_static_array(_serialize_impl::sorted_enum_pairs<T>());
+
+    auto remainder = std::to_underlying(value);
+    std::vector<std::string_view> partial;
+
+    for (auto [v, name] : enums) {
+      if (v == T(0)) {
+        if (remainder == 0) {
+          return name;
+        }
+      } else if ((remainder & v) == v) {
+        remainder &= ~v;
+        partial.push_back(name);
+        if (remainder == 0) {
+          break;
+        }
+      }
+    }
+
+    auto ret = std::string(std::from_range, partial | std::views::join_with('|'));
+    if (remainder != 0) {
+      if (not ret.empty()) {
+        ret += '|';
+      }
+      return ret + identifier_of(^^T) + '(' + to_string(remainder) + ')';
+    }
+    return ret;
+  } else {
+    // otherwise we can do better - try generating a switch instead
+    template for (constexpr auto E : define_static_array(enumerators_of(^^T))) {
+      if (extract<T>(constant_of(E)) == value) {
+        // at least one enumerator was an exact match, print the first
+        return std::string{identifier_of(E)};
+      }
+    }
+    // still no match, print as cast using the functional notation
+    return std::string(identifier_of(^^T)) + "(" + to_string(std::to_underlying(value)) + ")";
+  }
 }
 
 }  // namespace rsl

@@ -3,7 +3,7 @@
 #include <string>
 #include <rsl/_impl/hash.hpp>
 
-namespace rsl::_impl {
+namespace rsl::_serialize_impl {
 constexpr std::string op_to_string(std::meta::operators op) {
   switch (op) {
     using enum std::meta::operators;

@@ -11,8 +11,9 @@
 #include <rsl/source_location>
 #include <rsl/expect>
 #include <rsl/string_view>
-#include <rsl/_impl/util/to_string.hpp>
-#include "_impl/macros.hpp"
+#include <rsl/serialize>
+
+#include <rsl/_impl/macros.hpp>
 
 #define RSL_REVIEW_DEFAULT 1
 

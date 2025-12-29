@@ -2,7 +2,7 @@
 #include <string>
 #include <cstdint>
 
-namespace rsl::_impl {
+namespace rsl::_serialize_impl {
 constexpr std::string utos(std::uint64_t value) {
   std::string out{};
   do {
@@ -19,4 +19,4 @@ constexpr std::uint64_t stou(std::string_view str) {
   }
   return result;
 }
-}  // namespace rsl::_impl
+}  // namespace rsl::_serialize_impl
