@@ -25,6 +25,3 @@
 #else
 #  define RSL_ENABLE_IF(...)
 #endif
-
-#define $inline(...) RSL_INLINE(__VA_ARGS__)
-#define $enable_if(...) RSL_ENABLE_IF(__VA_ARGS__)

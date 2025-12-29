@@ -5,7 +5,7 @@
 #include <meta>
 #include <algorithm>
 
-#include <rsl/_impl/macro/attributes.hpp>
+#include <rsl/macro>
 
 namespace rsl::_impl {
 template <std::meta::info... Members>

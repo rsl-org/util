@@ -13,19 +13,7 @@
 #include <rsl/string_view>
 #include <rsl/serialize>
 
-#include <rsl/_impl/macros.hpp>
-
-#define RSL_REVIEW_DEFAULT 1
-
-#if !defined(RSL_ENABLE_REVIEW)
-#  define RSL_IMPL_ENABLE_REVIEW 0
-#else
-#  if RSL_IMPL_IS_EMPTY(RSL_ENABLE_REVIEW)
-#    define RSL_IMPL_ENABLE_REVIEW 1
-#  else
-#    define RSL_IMPL_ENABLE_REVIEW RSL_ENABLE_REVIEW
-#  endif
-#endif
+#include <rsl/_impl/_config.h>
 
 namespace rsl {
 namespace _error_impl {
@@ -90,7 +78,7 @@ constexpr void assert_violation(std::source_location sloc,
   }
 }
 
-#if RSL_IMPL_ENABLE_REVIEW
+#if $uses_opt(RSL_ENABLE_REVIEW)
 
 inline std::vector<std::string>& observations() {
   static std::vector<std::string> value;
@@ -157,7 +145,7 @@ constexpr bool assert_condition_wrapper(bool result, std::string_view message = 
     }();                                                                                     \
   } while (false)
 
-#if RSL_IMPL_ENABLE_REVIEW
+#if $uses_opt(RSL_ENABLE_REVIEW)
 #  define constexpr_review(...)                                           \
     do {                                                                  \
       static constexpr auto _sloc = ::rsl::source_location();             \

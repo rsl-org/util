@@ -1,8 +1,9 @@
 #pragma once
+#include <rsl/macro>
 
-#ifdef __unix__
+#if $os_is(LINUX)
 #  include <unistd.h>
-#elif defined(_WIN32) || defined(WIN32)
+#elif $os_is(WINDOWS)
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 
@@ -21,10 +22,12 @@
 
 namespace rsl::_impl_platform {
 inline bool isatty(int fd) {
-#if __unix__
+#if $os_is(LINUX)
   return bool(::isatty(fd));
-#else
+#elif $os_is(WINDOWS)
   return bool(::_isatty(fd));
+#else
+#  error "Unsupported platform"
 #endif
 }
 

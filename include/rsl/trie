@@ -14,7 +14,7 @@
 #include <rsl/span>
 #include <rsl/assert>
 
-#include <rsl/_impl/macro/attributes.hpp>
+#include <rsl/macro>
 
 namespace rsl {
 namespace _trie_impl {

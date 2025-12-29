@@ -6,6 +6,7 @@
 
 #include <rsl/constant_wrapper>
 #include <rsl/serializer/repr.hpp>
+#include <rsl/_impl/_config.h>
 
 namespace rsl {
 using repr_options = serializer::Options;
@@ -56,6 +57,6 @@ std::ostream& operator<<(std::ostream& stream,
 }
 }  // namespace rsl
 
-#ifdef RSL_GLOBAL_REPR
+#if $uses_opt(RSL_GLOBAL_REPR)
 using rsl::repr;
 #endif
