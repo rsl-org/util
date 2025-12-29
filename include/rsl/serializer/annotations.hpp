@@ -1,6 +1,6 @@
 #pragma once
 
-namespace rsl::annotations::inline serializer {
+namespace rsl::inline annotations {
 struct Skip {};
 constexpr inline Skip skip{};
-};  // namespace rsl::annotations::inline serializer
+};  // namespace rsl::inline annotations

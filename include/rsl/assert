@@ -11,8 +11,8 @@
 #include <rsl/source_location>
 #include <rsl/expect>
 #include <rsl/string_view>
+#include <rsl/serialize>
 
-#include <rsl/_impl/util/to_string.hpp>
 #include <rsl/_impl/_config.h>
 
 namespace rsl {
@@ -23,8 +23,8 @@ consteval void error() {
 }
 
 constexpr std::string format_sloc(std::source_location sloc) {
-  return std::string(sloc.file_name()) + ":" + util::to_string(sloc.line()) + ":" +
-         util::to_string(sloc.column());
+  return std::string(sloc.file_name()) + ":" + to_string(sloc.line()) + ":" +
+         to_string(sloc.column());
 }
 }  // namespace _error_impl
 

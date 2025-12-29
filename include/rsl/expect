@@ -8,10 +8,10 @@
 
 #include <rsl/annotations>
 #include <rsl/meta_traits>
+#include <rsl/serialize>
 
 #include <rsl/_impl/concepts.hpp>
-#include <rsl/_impl/util/operators.hpp>
-#include <rsl/_impl/util/to_string.hpp>
+#include <rsl/_impl/serialize/operators.hpp>
 
 namespace rsl::_expect_impl {
 template <typename T>
@@ -32,7 +32,7 @@ struct Operator {
   std::meta::operators op;
 
   Operator() = delete;
-  constexpr Operator(std::convertible_to<std::string_view> auto str) : op(util::to_operator(str)) {}
+  constexpr Operator(std::convertible_to<std::string_view> auto str) : op(_serialize_impl::to_operator(str)) {}
   constexpr Operator(std::meta::operators op) : op(op) {}
   constexpr ~Operator() {}
 
@@ -136,12 +136,12 @@ struct BinaryExpr {
     if constexpr (rhs_printable && lhs_printable) {
       return std::format("({} {} {})",
                          rhs.to_string(args),
-                         util::to_string(OP),
+                         to_string(OP),
                          lhs.to_string(args));
     } else if constexpr (rhs_printable) {
-      return std::format("({} {} {})", rhs.to_string(args), util::to_string(OP), lhs);
+      return std::format("({} {} {})", rhs.to_string(args), to_string(OP), lhs);
     } else if constexpr (lhs_printable) {
-      return std::format("({} {} {})", rhs, util::to_string(OP), lhs.to_string(args));
+      return std::format("({} {} {})", rhs, to_string(OP), lhs.to_string(args));
     }
   }
 
@@ -154,13 +154,13 @@ struct BinaryExpr {
     };
 
     if constexpr (rhs_printable && lhs_printable) {
-      return std::string("(") + rhs.to_string(replacements) + " " + util::to_string(OP) + " " +
+      return std::string("(") + rhs.to_string(replacements) + " " + to_string(OP) + " " +
              lhs.to_string(replacements) + ")";
     } else if constexpr (rhs_printable) {
-      return std::string("(") + rhs.to_string(replacements) + " " + util::to_string(OP) + " " +
-             util::to_string(lhs) + ")";
+      return std::string("(") + rhs.to_string(replacements) + " " + to_string(OP) + " " +
+             to_string(lhs) + ")";
     } else if constexpr (lhs_printable) {
-      return std::string("(") + util::to_string(rhs) + " " + util::to_string(OP) + " " +
+      return std::string("(") + to_string(rhs) + " " + to_string(OP) + " " +
              lhs.to_string(replacements) + ")";
     }
   }
@@ -281,7 +281,7 @@ decltype(auto) operator->*(T&& obj, value<Idx>) {
         return std::forward<T>(obj).[:member:]();
       }
     } else {
-      static_assert(false, std::string("Cannot get member") + util::utos(Idx));
+      static_assert(false, std::string("Cannot get member") + to_string(Idx));
     }
   }
 }
@@ -364,10 +364,10 @@ struct Wrapped {
     return eval(args);
   }
 
-  constexpr std::string to_string(auto const& args) const { return util::to_string(value); }
+  constexpr std::string to_string(auto const& args) const { return to_string(value); }
 
   constexpr std::string to_string(std::vector<std::string_view> const& replacements) const {
-    return util::to_string(value);
+    return to_string(value);
   }
 };
 
