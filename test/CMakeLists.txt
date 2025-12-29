@@ -1,5 +1,5 @@
 target_sources(rsl-util-test PRIVATE main.cpp)
-target_include_directories(rsl-util-test PRIVATE .)
+target_include_directories(rsl-util-test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
 add_subdirectory(variant)
 add_subdirectory(tagged_variant)
