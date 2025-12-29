@@ -3,8 +3,8 @@
 #include <string>
 #include <rsl/_impl/hash.hpp>
 
-namespace rsl::util {
-constexpr std::string to_string(std::meta::operators op) {
+namespace rsl::_impl {
+constexpr std::string op_to_string(std::meta::operators op) {
   switch (op) {
     using enum std::meta::operators;
     case op_new: return "new";
@@ -112,4 +112,4 @@ constexpr std::meta::operators to_operator(std::string_view text) {
   }
   return {};
 }
-}  // namespace rsl::util
+}  // namespace rsl::_impl

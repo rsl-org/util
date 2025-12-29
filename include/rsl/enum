@@ -196,6 +196,73 @@ constexpr bool in_range(U value) noexcept {
          std::cmp_greater_equal(static_cast<underlying>(value),
                                 static_cast<underlying>(numeric_limits<T>::min()));
 }
+
+namespace _impl {
+template <typename T>
+struct Enumerator {
+  T value;
+  char const* name;
+};
+
+template <typename T>
+consteval auto enum_pairs() {
+  auto enumerators =
+      std::vector(std::from_range, enumerators_of(^^T) | std::views::transform([](auto e) {
+                                     return Enumerator(extract<T>(constant_of(e)),
+                                                       define_static_string(identifier_of(e)));
+                                   }));
+
+  using sort_t = std::make_unsigned_t<std::underlying_type_t<T>>;
+  std::ranges::stable_sort(enumerators, std::ranges::greater{}, [](auto const& e) {
+    return std::popcount(static_cast<sort_t>(e.value));
+  });
+
+  return enumerators;
+}
+}  // namespace _impl
+
+template <typename T>
+  requires std::is_enum_v<T>
+constexpr std::string to_string(T value) {
+  if constexpr (is_flag_enum<T>) {
+    // for flag-likes we want to support `A | B` unless we got exact match
+    constexpr static auto enums = std::define_static_array(_impl::enum_pairs<T>());
+
+    auto remainder = std::to_underlying(value);
+    std::vector<std::string_view> partial;
+
+    for (auto [v, name] : enums) {
+      if (v == 0) {
+        if (remainder == 0) {
+          return name;
+        }
+      } else if ((remainder & v) == v) {
+        remainder &= ~v;
+        partial.push_back(name);
+        if (remainder == 0) {
+          break;
+        }
+      }
+    }
+
+    auto ret = std::string(std::from_range, partial | std::views::join_with('|'));
+    if (remainder != 0) {
+      return ret + identifier_of(^^T) + "(" + to_string(remainder) + ")";
+    }
+    return ret;
+  } else {
+    // otherwise we can do better - try generating a switch instead
+    template for (constexpr auto E : define_static_array(enumerators_of(^^T))) {
+      if (extract<T>(constant_of(E)) == value) {
+        // at least one enumerator was an exact match, print the first
+        return std::string{identifier_of(E)};
+      }
+    }
+    // still no match, print as cast using the functional notation
+    return std::string(identifier_of(^^T)) + "(" + to_string(std::to_underlying(value)) + ")";
+  }
+}
+
 }  // namespace rsl
 
 #ifdef RSL_POISON_STD

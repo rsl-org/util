@@ -1,19 +1,8 @@
 #pragma once
 #include <string>
-#include <concepts>
 #include <cstdint>
-#include <meta>
 
-namespace rsl::util {
-
-constexpr std::string to_string(bool value) {
-  return value ? "true" : "false";
-}
-
-constexpr std::string to_string(char value) {
-  return {value, 1};
-}
-
+namespace rsl::_impl {
 constexpr std::string utos(std::uint64_t value) {
   std::string out{};
   do {
@@ -30,18 +19,4 @@ constexpr std::uint64_t stou(std::string_view str) {
   }
   return result;
 }
-
-constexpr std::string to_string(std::integral auto value) {
-  if constexpr (std::is_signed_v<decltype(value)>) {
-    if (value < 0) {
-      return std::string{'-'} + utos(-value);
-    }
-  }
-  return utos(value);
-}
-
-consteval std::string to_string(std::meta::info value) {
-  // TODO this is incorrect for reflections of values
-  return std::string("^^") + display_string_of(value);
-}
-}  // namespace rsl::util
+}  // namespace rsl::_impl

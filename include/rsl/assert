@@ -34,8 +34,8 @@ consteval void error() {
 }
 
 constexpr std::string format_sloc(std::source_location sloc) {
-  return std::string(sloc.file_name()) + ":" + util::to_string(sloc.line()) + ":" +
-         util::to_string(sloc.column());
+  return std::string(sloc.file_name()) + ":" + to_string(sloc.line()) + ":" +
+         to_string(sloc.column());
 }
 }  // namespace _error_impl
 

@@ -6,10 +6,10 @@
 #include <memory>
 
 #include <rsl/utility>
+#include <rsl/serialize>
 
 #include <rsl/_impl/index_of.hpp>
 #include <rsl/_impl/member_cache.hpp>
-#include <rsl/_impl/util/to_string.hpp>
 #include <rsl/_impl/macro/attributes.hpp>
 
 #ifndef RSL_STD_COMPAT
@@ -157,7 +157,7 @@ private:
   consteval {
     std::size_t idx = 0;
     define_aggregate(^^StorageHolder<Types...>,
-                     {data_member_spec(^^Types, {.name = "_impl_" + util::to_string(idx++)})...});
+                     {data_member_spec(^^Types, {.name = "_impl_" + to_string(idx++)})...});
   }
   using storage_type = StorageHolder<Types...>;
 
