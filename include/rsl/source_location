@@ -71,4 +71,36 @@ public:
   }
 };
 
+consteval std::meta::info current_scope(
+    std::meta::info ctx = std::meta::access_context::current().scope()) {
+  return ctx;
+}
+
+consteval std::meta::info current_function(std::meta::info scope = current_scope()) {
+  if (is_function(scope)) {
+    return scope;
+  }
+  throw "not in a function";
+}
+
+consteval std::meta::info current_class(std::meta::info scope = current_scope()) {
+  while (not is_namespace(scope)) {
+    if (is_type(scope)) {
+      return scope;
+    }
+    scope = parent_of(scope);
+  }
+  throw "not in a class";
+}
+
+consteval std::meta::info current_namespace(std::meta::info scope = current_scope()) {
+  while (scope != ^^::) {
+    if (is_namespace(scope)) {
+      return scope;
+    }
+    scope = parent_of(scope);
+  }
+  return ^^::;
+}
+
 }  // namespace rsl
