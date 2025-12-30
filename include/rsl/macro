@@ -25,5 +25,19 @@
 #define $uses_opt(x) USES_OPT(x)
 
 // attributes
-#define $inline(...)    RSL_INLINE(__VA_ARGS__)
+/**
+ * @param: one of always, never
+ */
+#define $inline(...) RSL_INLINE(__VA_ARGS__)
+
+/** Enable this overload if expr evaluates to true. Clang only.
+ * @param expr
+ */
 #define $enable_if(...) RSL_ENABLE_IF(__VA_ARGS__)
+
+//! Workaround for expansion statements in GCC
+#if $compiler_is(GCC)
+#  define $define_static_array(...) [:std::meta::reflect_constant_array(__VA_ARGS__):]
+#else
+#  define $define_static_array(...) std::define_static_array(__VA_ARGS__)
+#endif

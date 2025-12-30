@@ -11,17 +11,17 @@ include(GNUInstallDirs)
 add_library(rsl-util INTERFACE)
 add_library(rsl::util ALIAS rsl-util)
 
-# TODO remove
-target_compile_options(rsl-util INTERFACE
-  "-stdlib=libc++"
-  "-freflection-latest"
-  "-Wno-c++26-extensions"
-)
-
-# TODO remove
+# temporary compiler-specific flags to enable reflection
 target_compile_features(rsl-util INTERFACE cxx_std_26)
-target_link_options(rsl-util INTERFACE "-stdlib=libc++")
-target_link_libraries(rsl-util INTERFACE "c++abi")
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  target_compile_options(rsl-util INTERFACE "-stdlib=libc++" "-freflection-latest")
+  target_link_options(rsl-util INTERFACE "-stdlib=libc++")
+  target_link_libraries(rsl-util INTERFACE "c++abi")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(rsl-util INTERFACE "-freflection")
+endif()
+
 
 target_include_directories(rsl-util INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
