@@ -41,9 +41,9 @@ class source_location {
   explicit consteval source_location(SourceContext const* data) : _impl_sloc(data) {}
 
 public:
-  SourceContext const* _impl_sloc = nullptr;
-  consteval source_location()
-      : _impl_sloc(make_context<std::meta::access_context::unchecked(), {}>()) {}
+  // public to avoid violating rules for structural types
+  SourceContext const* _impl_sloc      = make_context<std::meta::access_context::unchecked(), {}>();
+  consteval source_location() noexcept = default;
 
   consteval static source_location current(
       std::source_location sloc     = std::source_location::current(),
