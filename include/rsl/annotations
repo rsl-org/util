@@ -1,5 +1,6 @@
 #pragma once
 #include <rsl/meta_traits>
+#include <rsl/serialize> // for preferred_name annotation
 
 #include <rsl/serializer/repr.hpp>
 
@@ -17,5 +18,6 @@ constexpr inline GetterAnnotation getter{};
 consteval bool is_getter(std::meta::info R) {
   return is_function(R) && rsl::meta::has_annotation<GetterAnnotation>(R);
 }
+
 
 }  // namespace rsl

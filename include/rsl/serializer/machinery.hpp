@@ -28,7 +28,6 @@ template <typename T>
 struct Meta : Unsupported {
   static constexpr std::meta::info info = ^^T;
   using type                            = T;
-  using owning_type                     = T;
 
   template <typename U, typename F>
     requires(std::same_as<std::remove_cvref_t<U>, T>)
@@ -40,7 +39,6 @@ template <typename T>
 struct Meta<T> {
   static constexpr std::meta::info info = ^^T;
   using type                            = T;
-  using owning_type                     = T;
 
   template <typename U, typename F>
     requires(std::same_as<std::remove_cvref_t<U>, T>)
@@ -60,19 +58,6 @@ struct Meta<T> {
   static constexpr auto members =
       define_static_array(nonstatic_data_members_of(info, std::meta::access_context::current()));
   using type = T;
-  using owning_type = T;
-  
-  //! needs rewrite
-  // struct owning_type;
-  // consteval {
-  //   std::vector<std::meta::info> adjusted_members;
-  //   template for (constexpr auto member : Meta::members) {
-  //     adjusted_members.push_back(
-  //         data_member_spec(^^typename Meta<typename[:remove_cvref(type_of(member)):]>::owning_type,
-  //                          {.name = identifier_of(member)}));
-  //   }
-  //   define_aggregate(^^owning_type, adjusted_members);
-  // };
 
   template <typename F, typename U>
     requires(std::same_as<std::remove_cvref_t<U>, T>)
@@ -92,8 +77,6 @@ template <std::ranges::range T>
 struct Meta<T> {
   using type         = T;
   using element_type = typename T::value_type;
-  // todo handle maps
-  using owning_type = std::vector<typename Meta<element_type>::owning_type>;
 
   constexpr static std::meta::info info = ^^T;
   constexpr static bool can_descend     = true;
@@ -115,8 +98,6 @@ struct Meta<T> {
 template <typename First, typename Second>
 struct Meta<std::pair<First, Second>> {
   using type = std::pair<First, Second>;
-  using owning_type =
-      std::pair<typename Meta<First>::owning_type, typename Meta<Second>::owning_type>;
   constexpr static std::meta::info info = dealias(^^type);
 
   template <typename S, typename F, typename U>
@@ -131,12 +112,11 @@ template <typename T>
 struct Meta<std::optional<T>> {
   using type                            = std::optional<T>;
   using element_type                    = T;
-  using owning_type                     = std::optional<typename Meta<T>::owning_type>;
   constexpr static std::meta::info info = dealias(^^type);
   constexpr static bool is_optional     = true;
 
   template <typename S, typename F, typename U>
-  // requires(std::same_as<std::remove_cvref_t<U>, type>)
+    requires(std::same_as<std::remove_cvref_t<U>, type>)
   constexpr void descend(this S&& self, F&& visitor, U&& value) {
     if (value.has_value()) {
       std::invoke(std::forward<F>(visitor), Meta<std::remove_cvref_t<T>>{}, *value);
@@ -147,8 +127,6 @@ struct Meta<std::optional<T>> {
 template <std::convertible_to<std::string_view> T>
 struct Meta<T> {
   using type = T;
-  // TODO preserve character type
-  using owning_type                     = std::string;
   constexpr static std::meta::info info = ^^T;
 
   template <typename S, typename F, typename U>

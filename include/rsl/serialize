@@ -7,9 +7,9 @@
 #include <rsl/_impl/serialize/operators.hpp>
 #include <rsl/_impl/serialize/to_string.hpp>
 #include <rsl/_impl/serialize/enum.hpp>
+#include <rsl/serializer/repr.hpp>
 
 #include "serializer/machinery.hpp"
-#include "serializer/name.hpp"
 
 namespace rsl {
 
@@ -25,8 +25,6 @@ using serializer::type_name;
 using serializer::unqualified_name;
 using serializer::unqualified_name_of;
 
-template <typename T>
-using to_owning = typename serializer::Meta<T>::owning_type;
 
 template <typename T, typename V>
 constexpr void serialize(T&& serializer, V&& data) {
