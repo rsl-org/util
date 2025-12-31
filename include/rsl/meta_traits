@@ -1,6 +1,7 @@
 #pragma once
 #include <meta>
 #include <algorithm>
+#include <rsl/macro>
 
 namespace rsl::meta {
 
@@ -23,14 +24,25 @@ consteval bool is_nonstatic_member_function(std::meta::info R) {
   return is_member_function(R) && !is_static_member(R);
 }
 
+namespace _compat {
+consteval std::vector<std::meta::info> annotations_of_with_type(std::meta::info r,
+                                                                std::meta::info t) {
+#if $compiler_is(CLANG)
+  return std::meta::annotations_of(r, t);
+#else
+  return std::meta::annotations_of_with_type(r, t);
+#endif
+}
+}  // namespace _compat
+
 template <typename T>
 consteval bool has_annotation(std::meta::info item) {
-  return !annotations_of(item, ^^T).empty();
+  return !_compat::annotations_of_with_type(item, ^^T).empty();
 }
 
 consteval bool has_annotation(std::meta::info item, std::meta::info type) {
   if (is_type(type)) {
-    return !annotations_of(item, type).empty();
+    return !_compat::annotations_of_with_type(item, type).empty();
   } else if (is_template(type)) {
     for (auto annotation : annotations_of(item)) {
       if (has_template_arguments(type_of(annotation)) && template_of(type_of(annotation)) == type) {
@@ -46,8 +58,8 @@ consteval bool has_annotation(std::meta::info item, T const& value) {
   if (!has_annotation<T>(item)) {
     return false;
   }
-  auto annotations = annotations_of(item, dealias(^^T));
-  auto value_r     = std::meta::reflect_value(value);
+  auto annotations = _compat::annotations_of_with_type(item, dealias(^^T));
+  auto value_r     = std::meta::reflect_constant(value);
   return std::ranges::any_of(annotations, [&](auto annotation) { return annotation == value_r; });
 }
 

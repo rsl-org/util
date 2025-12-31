@@ -359,6 +359,7 @@ inline namespace string_view_literals {
 // [string.view.literals], suffix for basic_string_view literals
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wuser-defined-literals"
+
 constexpr string_view operator""sv(const char* str, size_t len) noexcept {
   return {str, len};
 }

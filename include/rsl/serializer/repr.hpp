@@ -380,7 +380,7 @@ consteval std::string get_type_name(NameMode mode) {
   }
   if constexpr (is_enumerable_type(^^T) &&
                 rsl::meta::has_annotation<preferred_name<_impl::Annotated>>(^^T)) {
-    return ret + [:constant_of(annotations_of(^^T, ^^preferred_name<_impl::Annotated>)[0]):].value;
+    return ret + [:constant_of(meta::_compat::annotations_of_with_type(^^T, ^^preferred_name<_impl::Annotated>)[0]):].value;
   }
   if constexpr (requires {
                   { T::preferred_name } -> std::convertible_to<std::string>;
