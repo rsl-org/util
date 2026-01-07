@@ -26,9 +26,12 @@ template <typename T>
 concept is_kwargs = has_template_arguments(^^T) && template_of(^^T) == ^^kwargs_t;
 
 namespace kwargs {
+struct parse_error : std::logic_error {
+  using std::logic_error::logic_error;
+};
+
 struct NameParser : _impl::Parser {
   using _impl::Parser::Parser;
-
   std::vector<std::string_view> names;
 
   constexpr bool parse() {
@@ -36,35 +39,15 @@ struct NameParser : _impl::Parser {
 
     while (is_valid()) {
       skip_whitespace();
-
-      if (current() == '&') {
-        // might be captured by reference
-        ++cursor;
-        skip_whitespace();
-      }
-
-      if (current() == '.') {
-        // pack captured, reject
-        return false;
-      }
-
       std::size_t start = cursor;
-
-      // find '=', ',' or whitespace
       skip_to('=', ',', ' ', '\n', '\r', '\t');
       if (cursor - start == 0) {
-        // default capture or invalid name
+        // invalid name
         return false;
       }
+      names.emplace_back(data.substr(start, cursor - start));
 
-      auto name = data.substr(start, cursor - start);
-      if (name == "this" || name == "*this") {
-        // this captured, reject
-        return false;
-      }
-      names.emplace_back(name);
-
-      // skip ahead to next capture
+      // skip ahead to next arg
       // if the current character is already ',', this will not move the cursor
       skip_to(',');
       ++cursor;
@@ -75,41 +58,64 @@ struct NameParser : _impl::Parser {
   }
 };
 
-template <string_constant Names, typename... Ts>
-constexpr auto make(Ts&&... values) {
-  struct kwargs_impl;
+struct Arg {
+  template <typename T>
+  decltype(auto) operator=(T&& value) const {
+    return std::forward<T>(value);
+  }
+};
+
+template <std::meta::info... Args>
+consteval std::meta::info inject_impl() {
+  struct injected_type;
   consteval {
-    std::vector<std::meta::info> types{^^Ts...};
-    std::vector<std::meta::info> args;
-
-    auto parser = NameParser(Names);
-
-    // with P3068 parser.parse() could throw to provide better diagnostics at this point
-    if (!parser.parse()) {
-      return;
-    }
-
-    // associate every argument with the corresponding name
-    // retrieved by parsing the capture list
-
-    // std::views::zip_transform could also be used for this
-    for (auto [member, name] : std::views::zip(types, parser.names)) {
-      args.push_back(data_member_spec(member, {.name = name}));
-    }
-    define_aggregate(^^kwargs_impl, args);
+    define_aggregate(^^injected_type, {Args...});
   };
 
   // ensure injecting the class worked
-  static_assert(is_type(^^kwargs_impl), std::string{"Invalid keyword arguments `"} + Names + "`");
+  static_assert(is_complete_type(^^injected_type));
+  return ^^injected_type;
+}
 
-  return kwargs_t<kwargs_impl>{{std::forward<Ts>(values)...}};
+consteval std::meta::info inject(std::meta::reflection_range auto&& fields) {
+  return extract<std::meta::info (*)()>(substitute(
+      ^^inject_impl,
+      fields | std::views::transform([](auto r) { return std::meta::reflect_constant(r); })))();
+}
+
+consteval std::meta::info make_detector_type(std::string_view Names) {
+  auto parser = NameParser(Names);
+  if (not parser.parse()) {
+    throw parse_error("could not parse argument list");
+  }
+  return inject(parser.names | std::views::transform([](auto name) {
+                  return data_member_spec(^^Arg, {.name = name});
+                }));
+}
+
+template <string_constant C>
+using detector = typename[:rsl::kwargs::make_detector_type(C):];
+
+template <string_constant Expr, typename... Ts>
+consteval auto inject_wrapper() {
+  std::vector<std::meta::info> args;
+  auto members =
+      nonstatic_data_members_of(^^detector<Expr>, std::meta::access_context::unprivileged());
+  for (auto [member, type] : std::views::zip(members, std::vector<std::meta::info>{^^Ts...})) {
+    args.push_back(data_member_spec(remove_cvref(type), {.name = identifier_of(member)}));
+  }
+
+  return inject(args);
+}
+
+template <string_constant Expr, typename... Ts>
+constexpr auto make(Ts&&... values) {
+  static_assert(((not std::same_as<std::remove_cvref_t<Ts>, Arg>) && ...));
+
+  using container = kwargs_t<typename[:inject_wrapper<Expr, std::remove_cvref_t<Ts>...>():]>;
+  return container{{std::forward<Ts>(values)...}};
 }
 }  // namespace kwargs
-
-template <string_constant Names, typename... Ts>
-constexpr auto make_args(Ts&&... values) {
-  return kwargs::make<Names>(std::forward<Ts>(values)...);
-}
 
 template <typename T>
   requires is_kwargs<std::remove_cvref_t<T>>
@@ -170,15 +176,8 @@ struct std::tuple_element<Idx, rsl::kwargs_t<T>> {
   using type = [:rsl::kwargs_t<std::remove_cvref_t<T>>::_member_cache.types[Idx]:];
 };
 
-#define RSL_KWARGS(...)                                                                            \
-  [__VA_ARGS__]<typename T>(this T _impl_this) {                                                   \
-    constexpr static auto _impl_captures =                                                         \
-        define_static_array(nonstatic_data_members_of(^^T, std::meta::access_context::current())); \
-    return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {                                  \
-      return rsl::kwargs::make<#__VA_ARGS__>(                                                      \
-          std::forward<decltype(_impl_this.[:_impl_captures[Idx]:])>(                              \
-              _impl_this.[:_impl_captures[Idx]:])...);                                             \
-    }(std::make_index_sequence<_impl_captures.size()>());                                          \
-  }()
+#define RSL_KWARGS_IDENTITY(x)   x
+#define RSL_KWARGS_EXPAND_ONE(d) rsl::kwargs::detector<d>{}.RSL_KWARGS_IDENTITY
 
-#define $args(...) RSL_KWARGS(__VA_ARGS__)
+#define $args(...) \
+  rsl::kwargs::make<#__VA_ARGS__>($for_each(RSL_KWARGS_EXPAND_ONE(#__VA_ARGS__), __VA_ARGS__))
