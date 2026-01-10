@@ -149,7 +149,7 @@ TEST(Get, TypeLvalue) {
   ASSERT_TRUE((std::same_as<rsl::variant_alternative<0, variant>::type, int>));
   ASSERT_TRUE((std::same_as<rsl::variant_alternative<1, variant>::type, long>));
   
-  using variant_base = rsl::_variant_impl::variant_base<rsl::_impl::Storage<int, long>>;
+  using variant_base = rsl::_variant_impl::variant_base<typename rsl::_impl::Storage<int, long>::type>;
   ASSERT_EQ((variant_base::alternatives.get_index_of(^^int)), 0);
   ASSERT_EQ((variant_base::alternatives.get_index_of(^^long)), 1);
   {
