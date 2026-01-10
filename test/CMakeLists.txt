@@ -7,7 +7,7 @@ add_subdirectory(span)
 add_subdirectory(format)
 add_subdirectory(expect)
 add_subdirectory(kwargs)
-# add_subdirectory(tagged_variant)
+add_subdirectory(tagged_variant)
 
 add_subdirectory(serializer)
 add_subdirectory(variant)
