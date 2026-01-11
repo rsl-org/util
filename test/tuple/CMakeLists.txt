@@ -4,6 +4,7 @@ target_sources(rsl-util-test PRIVATE
     assign.cpp
     tie.cpp
     make_tuple.cpp
+    cntr.cpp
 )
 
 add_subdirectory(tuple.get)
