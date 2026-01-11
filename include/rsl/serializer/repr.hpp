@@ -375,7 +375,7 @@ consteval std::string get_type_name(NameMode mode) {
     ret += _impl::namespace_prefix<std::remove_cvref_t<T>>();
   }
 
-  if constexpr (rsl::meta::complete_type<preferred_name<T>>) {
+  if constexpr (complete_type<preferred_name<T>>) {
     return ret + preferred_name<T>::value;
   }
   if constexpr (is_enumerable_type(^^T) &&
