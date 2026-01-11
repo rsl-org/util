@@ -203,6 +203,7 @@ class ReprVisitor {
 
 public:
   constexpr explicit ReprVisitor(Options opts = {}) : opts(opts) {}
+  constexpr ~ReprVisitor() = default;
 
   constexpr std::string finalize() const { return out; }
 
@@ -311,17 +312,19 @@ public:
 };
 
 namespace _impl {
-template <std::meta::info R, NameMode mode>
+template <auto Value, NameMode mode>
 consteval std::string stringify_constant_impl() {
   auto visitor = ReprVisitor{{.names = mode}};
-  rsl::serialize(visitor, [:R:]);
+  rsl::serialize(visitor, Value);
   return visitor.finalize();
 }
 
-consteval std::string stringify_constant(std::meta::info R, NameMode mode = NameMode::unqualified) {
-  return extract<std::string (*)()>(
-      substitute(^^stringify_constant_impl,
-                 {reflect_constant(R), std::meta::reflect_constant(mode)}))();
+template <auto Value, NameMode mode>
+constexpr std::string_view stringified_constant = define_static_string(stringify_constant_impl<Value, mode>());
+
+consteval std::string_view stringify_constant(std::meta::info R, NameMode mode = NameMode::unqualified) {
+  auto meta = substitute(^^stringified_constant, {R, std::meta::reflect_constant(mode)});
+  return extract<std::string_view const&>(meta);
 }
 }  // namespace _impl
 
@@ -354,7 +357,9 @@ consteval std::string_view stringify_template_args(std::meta::info R,
       ret += extract<std::string_view const&>(
           substitute(^^type_name, {arg, std::meta::reflect_constant(mode)}));
     } else if (is_value(arg) || is_object(arg)) {
+      // TODO
       ret += _impl::stringify_constant(arg, mode);
+      // ret += display_string_of(arg);
     } else if (has_identifier(arg)) {
       // TODO allow customization for templates?
       ret += identifier_of(arg);
