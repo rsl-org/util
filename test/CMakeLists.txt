@@ -11,5 +11,5 @@ add_subdirectory(tagged_variant)
 
 add_subdirectory(serializer)
 add_subdirectory(variant)
-# add_subdirectory(tuple)
+add_subdirectory(tuple)
 # add_subdirectory(trie)
