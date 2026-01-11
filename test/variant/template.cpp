@@ -31,7 +31,7 @@ struct WhoKnows {
     static_assert(hasOne<T>);
     using rsl::get;
     template for (constexpr auto index :
-                  construct_array(std::integer_sequence<int, 0, number_of_args - 1>())) {
+                  $define_static_array(construct_array(std::integer_sequence<int, 0, number_of_args - 1>()))) {
       if constexpr (rsl::holds_alternative<T>(Args...[index])) {
         return get<T>(Args...[index]);
       }

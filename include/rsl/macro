@@ -3,6 +3,8 @@
 #include <rsl/_impl/macro/compiler.hpp>
 #include <rsl/_impl/macro/opt.hpp>
 #include <rsl/_impl/macro/os.hpp>
+#include <rsl/_impl/macro/loop.hpp>
+#include <rsl/_impl/macro/diagnostic.hpp>
 
 // compile environment checks
 
@@ -41,3 +43,24 @@
 #else
 #  define $define_static_array(...) std::define_static_array(__VA_ARGS__)
 #endif
+
+/** Applies `macro` to every element and inserts delimiters produced by `delim` between elements
+ * @param macro function-like macro applied to every element
+ * @param delim function-like macro producing the delimiter
+ * @param ... elements to loop over
+*/
+#define $for_each_delim(macro, delim, ...) RSL_IMPL_FOR_EACH_DELIM(macro, delim, __VA_ARGS__)
+
+/** Applies `macro` to every element and inserts commas between elements
+ * @param macro function-like macro applied to every element
+ * @param ... elements to loop over
+*/
+#define $for_each_list(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_COMMA, __VA_ARGS__)
+
+/** Applies `macro` to every element
+ * @param macro function-like macro applied to every element
+ * @param ... elements to loop over
+*/
+#define $for_each(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_NONE, __VA_ARGS__)
+
+#define $diagnostics(op, ...) RSL_DIAG_##op (__VA_ARGS__)

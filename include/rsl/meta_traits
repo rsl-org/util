@@ -1,79 +1,12 @@
 #pragma once
 #include <meta>
-#include <algorithm>
+#include <rsl/meta>
 
-namespace rsl::meta {
+namespace rsl {
 
-consteval bool is_specialization(std::meta::info R, std::meta::info Template) {
-  return has_template_arguments(R) &&
-         template_of(R) == (is_template(Template) ? Template : template_of(Template));
-}
-
-using std::meta::is_function;
-
-consteval bool is_member_function(std::meta::info R) {
-  return is_function(R) && is_class_member(R);
-}
-
-consteval bool is_static_member_function(std::meta::info R) {
-  return is_member_function(R) && is_static_member(R);
-}
-
-consteval bool is_nonstatic_member_function(std::meta::info R) {
-  return is_member_function(R) && !is_static_member(R);
-}
-
-template <typename T>
-consteval bool has_annotation(std::meta::info item) {
-  return !annotations_of(item, ^^T).empty();
-}
-
-consteval bool has_annotation(std::meta::info item, std::meta::info type) {
-  if (is_type(type)) {
-    return !annotations_of(item, type).empty();
-  } else if (is_template(type)) {
-    for (auto annotation : annotations_of(item)) {
-      if (has_template_arguments(type_of(annotation)) && template_of(type_of(annotation)) == type) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-template <typename T>
-consteval bool has_annotation(std::meta::info item, T const& value) {
-  if (!has_annotation<T>(item)) {
-    return false;
-  }
-  auto annotations = annotations_of(item, dealias(^^T));
-  auto value_r     = std::meta::reflect_value(value);
-  return std::ranges::any_of(annotations, [&](auto annotation) { return annotation == value_r; });
-}
-
-consteval std::vector<std::meta::info> get_annotations(std::meta::info item, std::meta::info type) {
-  std::vector<std::meta::info> annotations;
-  for (auto annotation : annotations_of(item)) {
-    if ((is_type(type) && type == type_of(annotation)) ||
-        (is_template(type) && has_template_arguments(type_of(annotation)) &&
-         template_of(type_of(annotation)) == type)) {
-      annotations.push_back(annotation);
-    }
-  }
-  return annotations;
-}
-
-consteval std::meta::info get_annotation(std::meta::info item, std::meta::info type) {
-  return get_annotations(item, type)[0];
-}
-
-consteval bool has_parent(std::meta::info R) {
-  // HACK remove this once `std::meta::has_parent` is supported in libc++
-  return R != ^^::;
-}
-
-template <typename T, std::meta::info Template>
-concept specializes = is_specialization(^^T, Template);
+namespace meta {
+template <std::meta::info T, std::meta::info Template>
+concept specializes = is_specialization(T, Template);
 
 template <std::meta::info R>
 concept function = is_function(R);
@@ -90,9 +23,19 @@ concept nonstatic_member_function = is_nonstatic_member_function(R);
 template <std::meta::info R, std::meta::info T>
 concept annotated_with = has_annotation(R, T);
 
+template <std::meta::info T>
+concept complete_type = is_complete_type(T);
+
+template <std::meta::info T>
+concept incomplete_type = !complete_type<T>;
+}  // namespace meta
+
+template <typename T, std::meta::info Template>
+concept specializes = meta::specializes<^^T, Template>;
+
 template <typename T>
-concept complete_type = is_complete_type(^^T);
+concept complete_type = meta::complete_type<^^T>;
 
 template <typename T>
 concept incomplete_type = !complete_type<T>;
-}  // namespace rsl::meta
+}  // namespace rsl

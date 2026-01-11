@@ -7,7 +7,7 @@
 #include <functional>
 
 #include <rsl/annotations>
-#include <rsl/meta_traits>
+#include <rsl/meta>
 #include <rsl/serialize>
 
 #include <rsl/_impl/traits.hpp>
@@ -32,7 +32,8 @@ struct Operator {
   std::meta::operators op;
 
   Operator() = delete;
-  constexpr Operator(std::convertible_to<std::string_view> auto str) : op(_serialize_impl::to_operator(str)) {}
+  constexpr Operator(std::convertible_to<std::string_view> auto str)
+      : op(_serialize_impl::to_operator(str)) {}
   constexpr Operator(std::meta::operators op) : op(op) {}
   constexpr ~Operator() {}
 
@@ -58,7 +59,7 @@ constexpr auto make_expr(R rhs_, L lhs_) {
 }
 
 template <typename T>
-concept is_binary_expr = meta::specializes<T, ^^BinaryExpr>;
+concept is_binary_expr = meta::specializes<^^T, ^^BinaryExpr>;
 
 template <typename T>
 concept is_binary_comparison = is_binary_expr<T> && is_comparison(T::op);
@@ -70,7 +71,7 @@ struct BinaryExpr {
   R rhs;
 
   constexpr auto get_left_most() const {
-    if constexpr (meta::specializes<L, ^^BinaryExpr>) {
+    if constexpr (meta::specializes<^^L, ^^BinaryExpr>) {
       return lhs.get_left_most();
     } else {
       return lhs;
@@ -78,7 +79,7 @@ struct BinaryExpr {
   }
 
   constexpr auto get_right_most() const {
-    if constexpr (meta::specializes<R, ^^BinaryExpr>) {
+    if constexpr (meta::specializes<^^R, ^^BinaryExpr>) {
       return rhs.get_right_most();
     } else {
       return rhs;
@@ -134,10 +135,7 @@ struct BinaryExpr {
     };
 
     if constexpr (rhs_printable && lhs_printable) {
-      return std::format("({} {} {})",
-                         rhs.to_string(args),
-                         to_string(OP),
-                         lhs.to_string(args));
+      return std::format("({} {} {})", rhs.to_string(args), to_string(OP), lhs.to_string(args));
     } else if constexpr (rhs_printable) {
       return std::format("({} {} {})", rhs.to_string(args), to_string(OP), lhs);
     } else if constexpr (lhs_printable) {
@@ -406,8 +404,8 @@ struct Lazy {
 };
 
 template <typename T>
-concept is_expr_tree = meta::specializes<T, ^^Wrapped> || meta::specializes<T, ^^BinaryExpr> ||
-                       meta::specializes<T, ^^Placeholder> || meta::specializes<T, ^^Lazy>;
+concept is_expr_tree = meta::specializes<^^T, ^^Wrapped> || meta::specializes<^^T, ^^BinaryExpr> ||
+                       meta::specializes<^^T, ^^Placeholder> || meta::specializes<^^T, ^^Lazy>;
 
 #define $make_op(op)                                                           \
   template <typename T>                                                        \
@@ -468,7 +466,7 @@ auto lazy(auto... args) {
 template <typename T>
 struct Expect : T {
   constexpr auto transform() {
-    if constexpr (meta::specializes<T, ^^BinaryExpr>) {
+    if constexpr (meta::specializes<^^T, ^^BinaryExpr>) {
       return rsl::_expect_impl::Expect{T::transform()};
     } else {
       return *this;

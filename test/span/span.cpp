@@ -3,6 +3,14 @@
 
 #include <span>
 
+namespace {
+struct Foo {
+  int a;
+  int b;
+  char c;
+};
+}  // namespace
+
 TEST(span, construct) {
   constexpr int ca[]{0, 1, 2, 3, 4, 5, 6, 7, 8};
   rsl::span span(ca);
@@ -13,7 +21,7 @@ TEST(span, construct) {
   rsl::span<const int, 3> spanSizedFromArray(arr.begin(), 3);
 
   constexpr auto objects =
-      define_static_array(members_of(^^::, std::meta::access_context::current()));
+      define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()));
 
   constexpr rsl::span spanOfInfo(objects);
   constexpr rsl::span<const std::meta::info, 3> spanOfInfoSized(objects.data(), 3);
@@ -28,7 +36,7 @@ TEST(span, Empty) {
   ASSERT_TRUE(!span.empty());
 
   constexpr auto spanOfInfo =
-      rsl::span{define_static_array(members_of(^^::, std::meta::access_context::current()))};
+      rsl::span{define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()))};
   static_assert(!spanOfInfo.empty());
 }
 
@@ -44,7 +52,7 @@ TEST(span, Size) {
   ASSERT_EQ(spanWithSize.size(), 3);
 
   constexpr auto spanOfInfo =
-      rsl::span{define_static_array(members_of(^^::, std::meta::access_context::current()))};
+      rsl::span{define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()))};
   static_assert(spanOfInfo.size() > 1);
 }
 
@@ -94,10 +102,10 @@ TEST(span, At) {
 
   {
     constexpr auto spanOfInfo =
-        rsl::span{define_static_array(members_of(^^::, std::meta::access_context::current()))};
-    static_assert(spanOfInfo.at(1) == members_of(^^::, std::meta::access_context::current())[1]);
-    static_assert(spanOfInfo.at(2) != members_of(^^::, std::meta::access_context::current())[1]);
-    static_assert(spanOfInfo.at(2) == members_of(^^::, std::meta::access_context::current())[2]);
+        rsl::span{define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()))};
+    static_assert(spanOfInfo.at(1) == nonstatic_data_members_of(^^Foo, std::meta::access_context::current())[1]);
+    static_assert(spanOfInfo.at(2) != nonstatic_data_members_of(^^Foo, std::meta::access_context::current())[1]);
+    static_assert(spanOfInfo.at(2) == nonstatic_data_members_of(^^Foo, std::meta::access_context::current())[2]);
   }
 }
 
@@ -118,7 +126,7 @@ TEST(span, back) {
 
   {
     constexpr auto members =
-        define_static_array(members_of(^^::, std::meta::access_context::current()));
+        define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()));
     constexpr auto spanOfInfo = rsl::span{members};
     static_assert(spanOfInfo.back() == members[members.size() - 1]);
   }
@@ -141,7 +149,7 @@ TEST(span, front) {
 
   {
     constexpr auto members =
-        define_static_array(members_of(^^::, std::meta::access_context::current()));
+        define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()));
     constexpr auto spanOfInfo = rsl::span{members};
     static_assert(spanOfInfo.front() == members[0]);
   }
@@ -164,7 +172,7 @@ TEST(span, size_bytes) {
 
   {
     constexpr auto members =
-        define_static_array(members_of(^^::, std::meta::access_context::current()));
+        define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()));
     constexpr auto spanOfInfo = rsl::span{members};
     static_assert(spanOfInfo.size_bytes() == members.size() * sizeof(std::meta::info));
   }
@@ -193,7 +201,7 @@ TEST(span, first) {
 
   {
     constexpr auto members =
-        define_static_array(members_of(^^::, std::meta::access_context::current()));
+        define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()));
     constexpr auto spanOfInfo = rsl::span{members};
     static_assert(spanOfInfo.first<3>().size() == 3);
   }
@@ -222,7 +230,7 @@ TEST(span, last) {
 
   {
     constexpr auto members =
-        define_static_array(members_of(^^::, std::meta::access_context::current()));
+        define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()));
     constexpr auto spanOfInfo = rsl::span{members};
     static_assert(spanOfInfo.last<3>().size() == 3);
   }
@@ -266,7 +274,7 @@ TEST(span, subspan) {
 
   {
     constexpr auto members =
-        define_static_array(members_of(^^::, std::meta::access_context::current()));
+        define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()));
     constexpr auto spanOfInfo = rsl::span{members};
 
     constexpr auto subspanWithSize = spanOfInfo.subspan<1, 2>();
@@ -279,9 +287,9 @@ TEST(span, subspan) {
   }
 }
 
+namespace {
 template <rsl::span spanArgument>
-  requires std::same_as<typename decltype(spanArgument)::element_type, const int>
-void check() {
+void check1() {
   static_assert(spanArgument.size() == 3);
   static_assert(spanArgument[0] == 1);
   static_assert(spanArgument[1] == 2);
@@ -289,20 +297,21 @@ void check() {
 }
 
 template <rsl::span spanArgument>
-void check() {
+void check2() {
   static_assert(spanArgument.size() == 3);
 }
+}  // namespace
 
 TEST(span, asTemplateArgument) {
   {
     constexpr rsl::span<const int> arrSpan{std::define_static_array(std::array{1, 2, 3})};
-    check<arrSpan>();
+    check1<arrSpan>();
   }
 
   {
     constexpr auto members =
-        define_static_array(members_of(^^::, std::meta::access_context::current()));
+        define_static_array(nonstatic_data_members_of(^^Foo, std::meta::access_context::current()));
     constexpr auto spanOfInfo = rsl::span{members};
-    check<spanOfInfo.subspan<1, 3>()>();
+    check2<spanOfInfo>();
   }
 }

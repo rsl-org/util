@@ -32,19 +32,19 @@ int get_by_idx_default(rsl::kwargs_t<T> const& kwargs) {
 }
 
 TEST(KwArgs, Empty) {
-  auto args = RSL_KWARGS();
+  auto args = $args();
   EXPECT_EQ(std::tuple_size_v<decltype(args)>, 0);
 }
 
 TEST(KwArgs, Simple) {
-  EXPECT_EQ(member_access(RSL_KWARGS(x=10)), 10);
-  EXPECT_EQ(get_by_idx(RSL_KWARGS(x=10)), 10);
-  EXPECT_EQ(get_by_name(RSL_KWARGS(x=10)), 10);
+  EXPECT_EQ(member_access($args(x=10)), 10);
+  EXPECT_EQ(get_by_idx($args(x=10)), 10);
+  EXPECT_EQ(get_by_name($args(x=10)), 10);
 }
 
 TEST(KwArgs, Default) {
-  EXPECT_EQ(get_by_name_default(RSL_KWARGS(x=10)), 10);
-  EXPECT_EQ(get_by_idx_default(RSL_KWARGS(x=10)), 10);
-  EXPECT_EQ(get_by_name_default(RSL_KWARGS()), 42);
-  EXPECT_EQ(get_by_idx_default(RSL_KWARGS()), 42);
+  EXPECT_EQ(get_by_name_default($args(x=10)), 10);
+  EXPECT_EQ(get_by_idx_default($args(x=10)), 10);
+  EXPECT_EQ(get_by_name_default($args()), 42);
+  EXPECT_EQ(get_by_idx_default($args()), 42);
 }

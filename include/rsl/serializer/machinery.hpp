@@ -1,7 +1,10 @@
 #pragma once
 #include <meta>
 #include <ranges>
+
+#include <rsl/macro>
 #include <rsl/meta_traits>
+
 #include "annotations.hpp"
 
 namespace rsl::serializer {
@@ -62,7 +65,7 @@ struct Meta<T> {
   template <typename F, typename U>
     requires(std::same_as<std::remove_cvref_t<U>, T>)
   constexpr void descend(F&& visitor, U&& value) {
-    template for (constexpr auto Idx : std::views::iota(0ZU, members.size())) {
+    template for (constexpr auto Idx : $define_static_array(std::views::iota(0ZU, members.size()))) {
       constexpr auto M = members[Idx];
       if constexpr (!meta::has_annotation(M, ^^annotations::Skip)) {
         std::invoke(visitor, Member<Idx, M, typename[:type_of(M):]>{}, value.[:M:]);

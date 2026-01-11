@@ -19,17 +19,25 @@ constexpr std::string repr(T&& value, repr_options opts = {}) {
 }
 
 template <auto V>
-constexpr std::string repr(rsl::constant_wrapper<V>, repr_options opts = {}) {
+struct constant_t {
+  constexpr static auto value = V;
+};
+
+template <auto V>
+constexpr constant_t<V> constant{};
+
+template <auto V>
+constexpr std::string repr(constant_t<V>, repr_options opts = {}) {
   return rsl::repr(V, opts);
 }
 
 template <typename T, repr_options Opts>
-constexpr std::string repr(T&& value, rsl::constant_wrapper<Opts> = {}) {
+constexpr std::string repr(T&& value, constant_t<Opts> = {}) {
   return rsl::repr(std::forward<T>(value), Opts);
 }
 
 template <auto V, repr_options Opts>
-constexpr std::string repr(rsl::constant_wrapper<V>, rsl::constant_wrapper<Opts> = {}) {
+constexpr std::string repr(constant_t<V>, constant_t<Opts> = {}) {
   return rsl::repr(V, Opts);
 }
 
@@ -39,21 +47,21 @@ std::ostream& operator<<(std::ostream& stream, std::string (*)(T&&, repr_options
 }
 
 template <typename T, repr_options Opts>
-std::ostream& operator<<(std::ostream& stream, std::string (*)(T&&, rsl::constant_wrapper<Opts>)) {
+std::ostream& operator<<(std::ostream& stream, std::string (*)(T&&, constant_t<Opts>)) {
   return stream << std::string_view(define_static_string(display_string_of(remove_cvref(^^T))));
 }
 
 template <auto V>
 std::ostream& operator<<(std::ostream& stream,
-                         std::string (*fnc)(rsl::constant_wrapper<V>, repr_options)) {
-  return stream << fnc(rsl::constant_wrapper<V>{}, {});
+                         std::string (*fnc)(constant_t<V>, repr_options)) {
+  return stream << fnc(constant<V>, {});
 }
 
 template <auto V, repr_options Opts>
 std::ostream& operator<<(std::ostream& stream,
-                         std::string (*fnc)(rsl::constant_wrapper<V>,
-                                            rsl::constant_wrapper<Opts>)) {
-  return stream << fnc(rsl::constant_wrapper<V>{}, {});
+                         std::string (*fnc)(constant_t<V>,
+                                            constant_t<Opts>)) {
+  return stream << fnc(constant<V>, {});
 }
 }  // namespace rsl
 

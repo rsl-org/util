@@ -64,5 +64,5 @@ TEST(Repr, Iterables) {
 }
 
 TEST(Repr, Unsupported) {
-  ASSERT_EQ(rsl::repr(TestNS::Unsupported(3)), "Unsupported{/*...*/}");
+  ASSERT_EQ(rsl::repr(TestNS::Unsupported(3), {.names=rsl::NameMode::unqualified}), "Unsupported{/*...*/}");
 }

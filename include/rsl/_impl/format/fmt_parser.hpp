@@ -100,14 +100,14 @@ struct Replacement final : _impl::Parser {
 
   using _impl::Parser::Parser;
 
-  constexpr void add_style(FormatString& out, bool enable) const {
+  consteval void add_style(FormatString& out, bool enable) const {
     if (!style_tags.empty()) {
       out.string += style_separator;
       out.style_tags.emplace_back(style_tags, enable);
     }
   }
 
-  constexpr void render(FormatString& out) const {
+  consteval void render(FormatString& out) const {
     if (kind == ReplacementType::invalid) {
       // todo emit error?
       return;
@@ -223,7 +223,7 @@ struct FormatParser : _impl::Parser {
 
   FormatString result;
 
-  constexpr void push_text(int start, int end) { result.string += data.substr(start, end - start); }
+  consteval void push_text(int start, int end) { result.string += data.substr(start, end - start); }
 
   consteval static std::meta::info get_arg_accessor(std::size_t index) {
     return substitute(^^Accessor, {std::meta::reflect_constant(index)});

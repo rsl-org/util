@@ -3,7 +3,7 @@
 #include <ranges>
 #include <type_traits>
 #include <utility>
-#include <rsl/meta_traits>
+#include <rsl/meta>
 #include <rsl/_impl/_config.h>
 
 
