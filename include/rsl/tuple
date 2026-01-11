@@ -198,11 +198,11 @@ public:
              (std::reference_constructs_from_temporary_v<Types, UTypes &&> || ...))
   constexpr tuple(UTypes&&... values) = delete;
 
-  tuple(tuple const&) noexcept(std::is_nothrow_copy_constructible_v<storage_type>)
+  constexpr tuple(tuple const&) noexcept(std::is_nothrow_copy_constructible_v<storage_type>)
     requires(std::is_copy_constructible_v<storage_type>)
   = default;
 
-  tuple(tuple&&) noexcept(std::is_nothrow_move_constructible_v<storage_type>)
+  constexpr tuple(tuple&&) noexcept(std::is_nothrow_move_constructible_v<storage_type>)
     requires(std::is_move_constructible_v<storage_type>)
   = default;
 
@@ -214,24 +214,68 @@ public:
       : _impl_storage(other) {}
 
   template <class... UTypes>
-  constexpr explicit(!(std::is_convertible_v<UTypes const&, Types> && ...))
+    requires(sizeof...(UTypes) == sizeof...(Types)) &&
+            (std::ranges::all_of(std ::views ::zip(_impl_accessor.types,
+                                                   tuple<UTypes...>::_impl_accessor.types),
+                                 [](auto types_pair) consteval -> bool {
+                                   auto [dst, src] = types_pair;
+                                   return is_constructible_type(dst, {add_lvalue_reference(src)});
+                                 }))
+  constexpr explicit(!(std ::is_convertible_v<UTypes&, Types> && ...))
+      tuple(tuple<UTypes...>& other) noexcept((std ::is_nothrow_constructible_v<Types, UTypes&> &&
+                                               ...))
+      : _impl_storage([]<size_t... Is>(tuple<UTypes...>& o, std::index_sequence<Is...>) ->
+                      typename tuple<Types...>::storage_type {
+                        return {(Types... [Is] { o.template get<Is>() })...};
+                      }(other, std::index_sequence_for<Types...>{})) {}
+
+  template <class... UTypes>
+    requires(sizeof...(UTypes) == sizeof...(Types)) &&
+            (std ::ranges ::all_of(std ::views ::zip(_impl_accessor.types,
+                                                     tuple<UTypes...>::_impl_accessor.types),
+                                   [](auto types_pair) consteval -> bool {
+                                     auto [dst, src] = types_pair;
+                                     return is_constructible_type(dst, {add_lvalue_reference(src)});
+                                   }))
+  constexpr explicit(!(std ::is_convertible_v<UTypes&, Types> && ...))
       tuple(tuple<UTypes...> const& other) noexcept(
-          (std::is_nothrow_constructible_v<Types, UTypes const&> && ...))
-    requires(false)  // TODO
-      : _impl_storage(other) {}
+          (std ::is_nothrow_constructible_v<Types, UTypes&> && ...))
+      : _impl_storage([]<size_t... Is>(tuple<UTypes...> const& o, std::index_sequence<Is...>) ->
+                      typename tuple<Types...>::storage_type {
+                        return {(Types... [Is] { o.template get<Is>() })...};
+                      }(other, std::index_sequence_for<Types...>{})) {}
 
   template <class... UTypes>
-  constexpr explicit(!(std::is_convertible_v<UTypes, Types> && ...))
-      tuple(tuple<UTypes...>&& other) noexcept((std::is_nothrow_constructible_v<Types, UTypes> &&
+    requires(sizeof...(UTypes) == sizeof...(Types)) &&
+            (std ::ranges ::all_of(std ::views ::zip(_impl_accessor.types,
+                                                     tuple<UTypes...>::_impl_accessor.types),
+                                   [](auto types_pair) consteval -> bool {
+                                     auto [dst, src] = types_pair;
+                                     return is_constructible_type(dst, {add_rvalue_reference(src)});
+                                   }))
+  constexpr explicit(!(std ::is_convertible_v<UTypes&&, Types> && ...))
+      tuple(tuple<UTypes...>&& other) noexcept((std ::is_nothrow_constructible_v<Types, UTypes&> &&
                                                 ...))
-    requires(false)  // TODO
-      : _impl_storage(std::move(other)) {}
+      : _impl_storage([]<size_t... Is>(tuple<UTypes...>&& o, std::index_sequence<Is...>) ->
+                      typename tuple<Types...>::storage_type {
+                        return {(Types... [Is] { std::move(o.template get<Is>()) })...};
+                      }(std::move(other), std::index_sequence_for<Types...>{})) {}
 
   template <class... UTypes>
-  constexpr explicit(!(std::is_convertible_v<UTypes, Types> && ...))
-      tuple(tuple<UTypes...> const&& other)
-    requires(false)  // TODO
-      : _impl_storage(std::move(other)) {}
+    requires(sizeof...(UTypes) == sizeof...(Types)) &&
+            (std ::ranges ::all_of(std ::views ::zip(_impl_accessor.types,
+                                                     tuple<UTypes...>::_impl_accessor.types),
+                                   [](auto types_pair) consteval -> bool {
+                                     auto [dst, src] = types_pair;
+                                     return is_constructible_type(dst, {add_rvalue_reference(src)});
+                                   }))
+  constexpr explicit(!(std ::is_convertible_v<UTypes&&, Types> && ...))
+      tuple(tuple<UTypes...> const&& other) noexcept(
+          (std ::is_nothrow_constructible_v<Types, UTypes&> && ...))
+      : _impl_storage([]<size_t... Is>(tuple<UTypes...> const&& o, std::index_sequence<Is...>) ->
+                      typename tuple<Types...>::storage_type {
+                        return {(Types... [Is] { std::move(o.template get<Is>()) })...};
+                      }(std::move(other), std::index_sequence_for<Types...>{})) {}
 
   //   template <class U1, class U2>
   //   constexpr explicit(true /* TODO*/) tuple(std::pair<U1, U2>&);  // only if
