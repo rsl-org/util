@@ -9,6 +9,8 @@
 #include <cstddef>
 
 #include <rsl/string_constant>
+#include <rsl/meta>
+
 #include <rsl/_impl/parser.hpp>
 #include <rsl/_impl/member_cache.hpp>
 
@@ -65,32 +67,14 @@ struct Arg {
   }
 };
 
-template <std::meta::info... Args>
-consteval std::meta::info inject_impl() {
-  struct injected_type;
-  consteval {
-    define_aggregate(^^injected_type, {Args...});
-  };
-
-  // ensure injecting the class worked
-  static_assert(is_complete_type(^^injected_type));
-  return ^^injected_type;
-}
-
-consteval std::meta::info inject(std::meta::reflection_range auto&& fields) {
-  return extract<std::meta::info (*)()>(substitute(
-      ^^inject_impl,
-      fields | std::views::transform([](auto r) { return std::meta::reflect_constant(r); })))();
-}
-
 consteval std::meta::info make_detector_type(std::string_view Names) {
   auto parser = NameParser(Names);
   if (not parser.parse()) {
     throw parse_error("could not parse argument list");
   }
-  return inject(parser.names | std::views::transform([](auto name) {
-                  return data_member_spec(^^Arg, {.name = name});
-                }));
+  return rsl::meta::inject_aggregate(parser.names | std::views::transform([](auto name) {
+                                 return data_member_spec(^^Arg, {.name = name});
+                               }));
 }
 
 template <string_constant C>
@@ -105,7 +89,7 @@ consteval auto inject_wrapper() {
     args.push_back(data_member_spec(remove_cvref(type), {.name = identifier_of(member)}));
   }
 
-  return inject(args);
+  return rsl::meta::inject_aggregate(args);
 }
 
 template <string_constant Expr, typename... Ts>
