@@ -131,7 +131,7 @@ consteval std::string_view name_of(std::meta::info R, NameMode mode = NameMode::
     // return define_static_string(extract<std::string (*)()>(
     //     substitute(^^_impl::get_canonical_recurse, {R, std::meta::reflect_constant(mode)}))());
     return define_static_string(
-        extract<std::string_view>(substitute(^^type_name, {R, std::meta::reflect_constant(mode)})));
+        extract<std::string_view const&>(substitute(^^type_name, {R, std::meta::reflect_constant(mode)})));
   } else {
     // TODO handle qualified/fully_qualified
     // TODO collapse t.operator() to t()?
@@ -195,9 +195,9 @@ class ReprVisitor {
   constexpr void print_type() {
     using CleanT = std::remove_cvref_t<T>;
     switch (opts.names) {
-      case NameMode::qualified: out += qualified_name<CleanT>; break;
-      case NameMode::fully_qualified: out += fully_qualified_name<CleanT>; break;
-      case NameMode::unqualified: out += unqualified_name<CleanT>; break;
+      case NameMode::qualified: out += qualified_name_of(remove_cvref(^^T)); break;
+      case NameMode::fully_qualified: out += fully_qualified_name_of(remove_cvref(^^T)); break;
+      case NameMode::unqualified: out += unqualified_name_of(remove_cvref(^^T)); break;
     }
   }
 
@@ -218,7 +218,7 @@ public:
   template <has_members R, typename T>
   constexpr void operator()(R meta, T&& value) {
     print_separator();
-    print_type<std::remove_cvref_t<T>>();
+    print_type<T>();
     increase_nesting();
     meta.descend(*this, std::forward<T>(value));
     decrease_nesting();
@@ -227,14 +227,13 @@ public:
   template <is_iterable R, typename T>
   constexpr void operator()(R meta, T&& value) {
     print_separator();
-    print_type<std::remove_cvref_t<T>>();
+    print_type<T>();
     increase_nesting();
     meta.descend(*this, std::forward<T>(value));
     decrease_nesting();
   }
 
-  template <typename R>
-  constexpr void operator()(R, std::convertible_to<std::string_view> auto const& value) {
+  constexpr void operator()(auto, std::convertible_to<std::string_view> auto const& value) {
     print_separator();
     out += '"';
     out += std::string(value);  // allowed in C++26 constexpr
@@ -261,9 +260,9 @@ public:
     decrease_nesting();
   }
 
-  template <typename R, typename T>
+  template <typename T>
     requires std::is_floating_point_v<std::remove_cvref_t<T>>
-  constexpr void operator()(R, T value) {
+  constexpr void operator()(auto, T value) {
     print_separator();
     std::array<char, 64> buffer{};
 
@@ -286,9 +285,9 @@ public:
     out += result;
   }
 
-  template <typename R, typename T>
+  template <typename T>
     requires std::is_integral_v<std::remove_cvref_t<T>>
-  constexpr void operator()(R, T value) {
+  constexpr void operator()(auto, T value) {
     print_separator();
     std::array<char, 32> buffer{};  // Enough for any 64-bit integer including sign
     auto [ptr, ec] = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
@@ -337,6 +336,9 @@ consteval std::string_view stringify_template_args(std::meta::info R,
       if (!can_substitute(template_of(R), args | std::views::take(required))) {
         break;
       }
+      if (substitute(template_of(R), args | std::views::take(required)) != R) {
+        break;
+      }
     }
   }
   ++required;
@@ -349,10 +351,13 @@ consteval std::string_view stringify_template_args(std::meta::info R,
       ret += ", ";
     }
     if (is_type(arg)) {
-      ret += extract<std::string_view>(
+      ret += extract<std::string_view const&>(
           substitute(^^type_name, {arg, std::meta::reflect_constant(mode)}));
     } else if (is_value(arg) || is_object(arg)) {
       ret += _impl::stringify_constant(arg, mode);
+    } else if (has_identifier(arg)) {
+      // TODO allow customization for templates?
+      ret += identifier_of(arg);
     } else {
       ret += display_string_of(arg);
     }
@@ -412,6 +417,8 @@ consteval std::string get_type_name(NameMode mode) {
     }
     ret += stringify_template_args(^^T, mode);
     return ret;
+  } else if constexpr (has_identifier(^^T)) {
+    return ret + identifier_of(^^T);
   } else {
     return ret + display_string_of(^^T);
   }
