@@ -1,5 +1,5 @@
 #pragma once
-#include <rsl/meta_traits>
+#include <rsl/meta>
 #include <rsl/serialize> // for preferred_name annotation
 
 #include <rsl/serializer/repr.hpp>

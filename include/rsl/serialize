@@ -1,7 +1,7 @@
 #pragma once
 #include <functional>
 #include <ranges>
-#include <rsl/meta_traits>
+#include <rsl/meta>
 
 #include <rsl/macro>
 #include <rsl/enum>  // for to_string(enum-type)

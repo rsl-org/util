@@ -7,7 +7,7 @@
 #include <functional>
 
 #include <rsl/annotations>
-#include <rsl/meta_traits>
+#include <rsl/meta>
 #include <rsl/serialize>
 
 #include <rsl/_impl/traits.hpp>
