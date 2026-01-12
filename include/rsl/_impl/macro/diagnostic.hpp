@@ -39,7 +39,7 @@
 #  define RSL_DIAGS_literal_suffix "-Wliteral-suffix"
 #  define RSL_DIAGS_narrowing      "-Wnarrowing"
 #elif RSL_COMPILER == RSL_COMPILER_CLANG
-#  define RSL_DIAGS_literal_suffix "-Wliteral-suffix"
+#  define RSL_DIAGS_literal_suffix "-Wuser-defined-literals"
 #  define RSL_DIAGS_narrowing      "-Wc++11-narrowing"
 #else
 #  warning "Unsupported compiler"

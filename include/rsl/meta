@@ -89,7 +89,6 @@ consteval bool has_parent(std::meta::info R) {
   return R != ^^::;
 }
 
-
 consteval std::meta::info get_member_by_name(std::meta::info r, std::string_view name) {
   for (auto member : members_of(r, std::meta::access_context::unprivileged())) {
     if (has_identifier(member) && identifier_of(member) == name) {

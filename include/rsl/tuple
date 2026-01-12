@@ -123,9 +123,6 @@ struct Subscript<T, std::index_sequence<Idx...>> : SubscriptElement<T, Idx>... {
   }
 };
 #endif
-
-template <typename... Ts>
-struct type_list {};
 }  // namespace _tuple_impl
 
 template <class... Types>
@@ -137,12 +134,20 @@ class tuple
 private:
   template <typename... Us>
   constexpr static bool enable_utypes_ctor =
-      !std::same_as<tuple, Us...[0]> && (std::is_constructible_v<Types, Us> && ...);
+      not(sizeof...(Us) == 1 && (std::same_as<tuple, Us> && ...)) &&
+      (std::is_constructible_v<Types, Us> && ...);
 
   template <typename... Us>
   constexpr static bool enable_utypes_tuple_ctor = true;  // TODO
 
+#if $compiler_is(CLANG)
+  // workaround for use as template argument
+  template <typename... Ts>
+  struct Storage;
+  using storage_type = Storage<Types...>;
+#else
   struct storage_type;
+#endif
   consteval {
     std::size_t idx = 0;
     define_aggregate(^^storage_type,
@@ -153,7 +158,7 @@ private:
   constexpr void _impl_copy_assign(this Self& self, T const& other) {
     template for (constexpr auto Idx :
                   $define_static_array(std::views::iota(0ZU, sizeof...(Types)))) {
-      self._impl_storage.[:self._impl_accessor.members[Idx]:]  = other.template get<Idx>();
+      self._impl_storage.[:self._impl_accessor.members[Idx]:] = other.template get<Idx>();
     }
   }
 
