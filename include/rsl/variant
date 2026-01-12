@@ -40,7 +40,6 @@ public:
 };
 
 [[noreturn]] inline void throw_bad_variant_access(bool valueless) {
-  __builtin_debugtrap();
 #if __cpp_exceptions
   if (valueless) {
     throw bad_variant_access("variant is valueless");
@@ -196,7 +195,7 @@ template <typename R, typename F, typename V>
 constexpr R visit_at_enumerated(std::size_t idx, F&& visitor, V&& variant) {
   // This only makes sense for single-variant visitation
   constexpr static std::size_t max_index = rsl::variant_size<std::remove_cvref_t<V>>::value;
-  template for (constexpr size_t Idx : std::views::iota(0ZU, max_index)) {
+  template for (constexpr size_t Idx : $define_static_array(std::views::iota(0ZU, max_index))) {
     if (idx == Idx) {
       return std::invoke(std::forward<F>(visitor),
                          std::in_place_index<Idx>,
@@ -209,7 +208,7 @@ constexpr R visit_at_enumerated(std::size_t idx, F&& visitor, V&& variant) {
 template <typename R, typename F, typename... Vs>
 constexpr R visit_at(std::size_t idx, F&& visitor, Vs&&... variants) {
   constexpr static std::size_t max_index = VisitImpl<Vs...>::max_index;
-  template for (constexpr size_t Idx : std::views::iota(0ZU, max_index)) {
+  template for (constexpr size_t Idx : $define_static_array(std::views::iota(0ZU, max_index))) {
     if (idx == Idx) {
       return VisitImpl<Vs...>::template visit<Idx>(std::forward<F>(visitor),
                                                    std::forward<Vs>(variants)...);
@@ -259,7 +258,8 @@ protected:
       return true;
     }
 
-    template for (constexpr auto Idx : std::views::iota(0ZU, alternatives.count)) {
+    template for (constexpr auto Idx :
+                  $define_static_array(std::views::iota(0ZU, alternatives.count))) {
       if constexpr (std::is_nothrow_move_constructible_v<typename[:alternatives.types[Idx]:]>) {
         return true;
       }
@@ -415,8 +415,8 @@ public:
   template <typename T>
     requires(!std::same_as<std::remove_cvref_t<T>, variant_base> &&
              !_variant_impl::is_in_place<std::remove_cvref_t<T>> &&
-             std::assignable_from<typename[:alternatives.types[selected_index<T>]:]&, T> &&
-             selected_index<T> != variant_npos)
+             selected_index<T> != variant_npos &&
+             std::assignable_from<typename[:alternatives.types[selected_index<T>]:]&, T>)
   constexpr variant_base& operator=(T&& obj) noexcept(
       is_nothrow_constructible_type(alternatives.types[selected_index<T>], {remove_cvref(^^T)})) {
     emplace<selected_index<T>>(std::forward<T>(obj));
@@ -753,8 +753,7 @@ template <std::size_t Idx, typename Storage>
 constexpr auto get_if(_variant_impl::variant_base<Storage>* variant_) noexcept
     -> variant_alternative_t<Idx, _variant_impl::variant_base<Storage>>* {
   constexpr static auto alt_count = _variant_impl::variant_base<Storage>::alternatives.count;
-  static_assert(Idx < alt_count,
-                std::string("index must be in [0, ") + to_string(alt_count) + "]");
+  static_assert(Idx < alt_count, std::string("index must be in [0, ") + to_string(alt_count) + "]");
   static_assert(!std::is_void_v<variant_alternative_t<Idx, _variant_impl::variant_base<Storage>>>,
                 "alternative type must not be void");
 
@@ -783,28 +782,24 @@ using bad_variant_access = _variant_impl::bad_variant_access;
 
 namespace _impl {
 template <typename... Ts>
-consteval std::meta::info make_storage() {
-  union Storage;
+struct Storage {
+  union type;
   consteval {
     std::size_t idx = 0;
     define_aggregate(
-        ^^Storage,
+        ^^type,
         {data_member_spec(^^char, {.name = "_rsl_dummy"}),
-         data_member_spec(remove_cvref(^^Ts), {.name = "_rsl_alt" + to_string(idx++)})...});
+         data_member_spec(^^std::remove_cvref_t<Ts>, {.name = "_rsl_alt" + to_string(idx++)})...});
   };
-  return ^^Storage;
-}
-
-template <typename... Ts>
-using Storage = [:make_storage<Ts...>():];
+};
 }  // namespace _impl
 
 template <typename... Ts>
-class variant : public _variant_impl::variant_base<_impl::Storage<Ts...>> {
+class variant : public _variant_impl::variant_base<typename _impl::Storage<Ts...>::type> {
   static_assert(sizeof...(Ts) > 0, "variant must contain at least one alternative");
   static_assert((!std::is_reference_v<Ts> && ...), "variant must not have reference alternatives");
   static_assert((!std::is_void_v<Ts> && ...), "variant must not have void alternatives");
-  using storage_type = _impl::Storage<Ts...>;
+  using storage_type = _impl::Storage<Ts...>::type;
   using base         = _variant_impl::variant_base<storage_type>;
 
 public:
@@ -844,7 +839,7 @@ struct variant_alternative<Idx, variant<Ts...>> {
 template <std::size_t Idx, typename... Ts>
 struct variant_alternative<Idx, variant<Ts...> const> {
   static_assert(Idx < sizeof...(Ts), "variant_alternative index out of range");
-  using type = Ts...[Idx] const;
+  using type = std::add_const_t<Ts...[Idx]>;
 };
 
 namespace _impl {
@@ -892,11 +887,11 @@ template <_impl::is_enum E>
 constexpr static auto transitions = _tagged_variant_impl::make_transitions<E>();
 
 template <_impl::is_enum E>
-consteval std::meta::info make_storage() {
-  union Storage;
+struct Storage {
+  union type;
   consteval {
     std::size_t idx = 0;
-    auto members    = std::vector{data_member_spec(^^char)};
+    auto members    = std::vector{data_member_spec(^^char, {.name = "_rsl_dummy"})};
 
     for (auto enumerator : enumerators_of(^^E)) {
       auto annotations     = annotations_of(enumerator);
@@ -904,18 +899,15 @@ consteval std::meta::info make_storage() {
       auto alt_type        = dealias(substitute(^^_impl::unwrap_type_tag, {annotation_type}));
       members.push_back(data_member_spec(alt_type, {.name = identifier_of(enumerator)}));
     }
-    define_aggregate(^^Storage, members);
+    define_aggregate(^^type, members);
   };
-  return ^^Storage;
-}
+};
 
-template <_impl::is_enum E>
-using Storage = [:make_storage<E>():];
 }  // namespace _tagged_variant_impl
 
 template <typename E>
-struct tagged_variant : public _variant_impl::variant_base<_tagged_variant_impl::Storage<E>> {
-  using storage_type = _tagged_variant_impl::Storage<E>;
+struct tagged_variant : public _variant_impl::variant_base<typename _tagged_variant_impl::Storage<E>::type> {
+  using storage_type = _tagged_variant_impl::Storage<E>::type;
   using base         = _variant_impl::variant_base<storage_type>;
 
 public:
@@ -933,7 +925,8 @@ public:
   storage_type* operator*() { return &this->_impl_storage; }
   storage_type const* operator*() const { return &this->_impl_storage; }
 
-  explicit(false) operator E() const { return _tagged_variant_impl::transitions<E>[this->index()]; }
+  explicit(false) operator E() const { return
+  _tagged_variant_impl::transitions<E>[this->index()]; }
 
   using base::emplace;
   using base::get;
@@ -978,7 +971,8 @@ namespace _impl {
 template <typename E>
 concept all_alts_hashable = std::ranges::all_of(
     rsl::tagged_variant<E>::alternatives,
-    std::ranges::transform([](auto R) { return extract<bool>(substitute(^^is_hashable, {R})); }));
+    std::ranges::transform([](auto R) { return extract<bool>(substitute(^^is_hashable, {R}));
+    }));
 
 template <typename E>
 concept all_alts_noexcept_hashable =

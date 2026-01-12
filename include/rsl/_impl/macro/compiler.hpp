@@ -9,14 +9,17 @@
 #define RSL_VERSION_ENCODE(major, minor, patch) ((major) * 1000000 + (minor) * 1000 + (patch))
 
 #if defined(__clang__)
-#  define RSL_COMPILER RSL_COMPILER_CLANG
+#  define RSL_COMPILER    RSL_COMPILER_CLANG
+#  define RSL_COMPILER_ID clang
 #  define RSL_COMPILER_VERSION \
     RSL_VERSION_ENCODE(__clang_major__, __clang_minor__, __clang_patchlevel__)
 #elif defined(__GNUC__)
 #  define RSL_COMPILER         RSL_COMPILER_GCC
+#  define RSL_COMPILER_ID      GCC
 #  define RSL_COMPILER_VERSION RSL_VERSION_ENCODE(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
 #elif defined(_MSC_VER)
-#  define RSL_COMPILER RSL_COMPILER_MSVC
+#  define RSL_COMPILER    RSL_COMPILER_MSVC
+#  define RSL_COMPILER_ID MSVC
 #  if defined(_MSC_FULL_VER)
 #    define RSL_COMPILER_VERSION _MSC_FULL_VER
 #  else
@@ -25,6 +28,7 @@
 
 #else
 #  define RSL_COMPILER         RSL_COMPILER_UNKNOWN
+#  define RSL_COMPILER_ID      UNKNOWN
 #  define RSL_COMPILER_VERSION 0
 #endif
 

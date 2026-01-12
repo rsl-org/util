@@ -1,0 +1,19 @@
+#pragma once
+
+#define RSL_IMPL_PARENS ()
+
+#define RSL_IMPL_EXPAND(...)  RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND4(...) RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND3(...) RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND2(...) RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND1(...) __VA_ARGS__
+
+#define RSL_IMPL_FOR_EACH_DELIM(macro, delim, ...)                              \
+  __VA_OPT__(RSL_IMPL_EXPAND(RSL_IMPL_FOR_EACH_DELIM_HELPER(macro, delim, __VA_ARGS__)))
+#define RSL_IMPL_FOR_EACH_DELIM_HELPER(macro, delim, a1, ...)                   \
+  macro(a1)                                                            \
+  __VA_OPT__(delim() RSL_IMPL_FOR_EACH_DELIM_AGAIN RSL_IMPL_PARENS (macro, delim, __VA_ARGS__))
+#define RSL_IMPL_FOR_EACH_DELIM_AGAIN() RSL_IMPL_FOR_EACH_DELIM_HELPER
+
+#define RSL_IMPL_DELIM_NONE()
+#define RSL_IMPL_DELIM_COMMA() ,

@@ -9,6 +9,7 @@ enum class Foo {
   bar [[=rsl::type<char>]]
 };
 
+// TODO test tagged_variant as well
 using variant_swap_p = ::testing::Types<rsl::variant<int,float>, rsl::tagged_variant<Foo>>;
 template<typename T>
 struct VariantSwap : public testing::Test

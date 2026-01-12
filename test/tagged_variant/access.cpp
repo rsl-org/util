@@ -18,11 +18,11 @@ enum UnscopedEnum {  //
 };
 
 TEST(TaggedVariant, GetTag) {
-  using type = rsl::tagged_variant<ScopedEnum>;
-  type variant{42};
+  using variant_type = rsl::tagged_variant<ScopedEnum>;
+  variant_type variant{42};
   ASSERT_EQ(get_tag<ScopedEnum>(variant), ScopedEnum::INT);
 
-  variant = type{std::in_place_index<2>, false};
+  variant = variant_type{std::in_place_index<2>, false};
   ASSERT_EQ(get_tag<ScopedEnum>(variant), ScopedEnum::BOOL);
 }
 

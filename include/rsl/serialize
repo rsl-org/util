@@ -1,8 +1,9 @@
 #pragma once
 #include <functional>
 #include <ranges>
-#include <rsl/meta_traits>
+#include <rsl/meta>
 
+#include <rsl/macro>
 #include <rsl/enum>  // for to_string(enum-type)
 #include <rsl/_impl/serialize/operators.hpp>
 #include <rsl/_impl/serialize/to_string.hpp>
@@ -31,10 +32,10 @@ constexpr void serialize(T&& serializer, V&& data) {
   std::invoke(serializer, serializer::Meta<std::remove_cvref_t<V>>{}, std::forward<V>(data));
 }
 
-template <meta::complete_type V, typename T, std::ranges::forward_range R>
+template <complete_type V, typename T, std::ranges::forward_range R>
 constexpr V deserialize(T&& deserializer, R&& data) {}
 
-template <typename T, meta::complete_type V>
+template <typename T, complete_type V>
 constexpr void serialize_type(T&& serializer) {
   return serializer.template operator()<^^V>();
 }
@@ -109,7 +110,7 @@ constexpr std::string to_string(T value) {
     return ret;
   } else {
     // otherwise we can do better - try generating a switch instead
-    template for (constexpr auto E : define_static_array(enumerators_of(^^T))) {
+    template for (constexpr auto E : $define_static_array(enumerators_of(^^T))) {
       if (extract<T>(constant_of(E)) == value) {
         // at least one enumerator was an exact match, print the first
         return std::string{identifier_of(E)};

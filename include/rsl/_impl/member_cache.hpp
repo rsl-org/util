@@ -60,7 +60,7 @@ struct MemberAccessor {
   static consteval bool has_member(std::string_view name) { return get_index_of(name) != -1UZ; }
 };
 
-template <auto... Members>
+template <std::meta::info... Members>
 constexpr inline MemberAccessor<Members...> member_cache{};
 
 consteval auto cache_members(auto&& member_range) {
