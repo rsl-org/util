@@ -24,10 +24,10 @@ class source_location {
 
   template <std::meta::access_context R, RawSloc Data>
   consteval static SourceContext const* make_context() {
-    struct SourceContextImpl : SourceContext {
+    struct SourceContextImpl final : SourceContext {
       using SourceContext::SourceContext;
-      consteval virtual std::meta::info scope() const { return R.scope(); }
-      consteval virtual std::meta::access_context access_context() const { return R; }
+      consteval std::meta::info scope() const override { return R.scope(); }
+      consteval std::meta::access_context access_context() const override { return R; }
     };
     constexpr static SourceContextImpl obj{Data};
     return &obj;
@@ -45,29 +45,35 @@ public:
   // public to avoid violating rules for structural types
   SourceContext const* _impl_sloc      = make_context<std::meta::access_context::unchecked(), {}>();
   consteval source_location() noexcept = default;
+  consteval explicit(false)
+      source_location(std::source_location const& sloc,
+                      std::meta::access_context ctx = std::meta::access_context::current()) {
+    auto base  = RawSloc{define_static_string(std::string_view(sloc.file_name())),
+                        define_static_string(std::string_view(sloc.function_name())),
+                        sloc.line(),
+                        sloc.column()};
+    _impl_sloc = extract<SourceContext const*>(
+        substitute(^^_impl_context, {reflect_constant(ctx), std::meta::reflect_constant(base)}));
+  }
 
   consteval static source_location current(
       std::source_location sloc     = std::source_location::current(),
       std::meta::access_context ctx = std::meta::access_context::current()) {
-    auto base = RawSloc{define_static_string(std::string_view(sloc.file_name())),
-                        define_static_string(std::string_view(sloc.function_name())),
-                        sloc.line(),
-                        sloc.column()};
-
     // TODO: with gcc we can use make_context directly - _impl_context is a workaround for clang
-    return source_location{extract<SourceContext const*>(
-        substitute(^^_impl_context, {reflect_constant(ctx), std::meta::reflect_constant(base)}))};
+    return {sloc, ctx};
   }
 
   // TODO wrap file_name and function_name in rsl::cstring_view as soon as implemented
-  constexpr char const* file_name() const noexcept { return _impl_sloc->file_name; }
-  constexpr char const* function_name() const noexcept { return _impl_sloc->function_name; }
-  constexpr unsigned line() const noexcept { return _impl_sloc->line; }
-  constexpr unsigned column() const noexcept { return _impl_sloc->column; }
+  [[nodiscard]] constexpr char const* file_name() const noexcept { return _impl_sloc->file_name; }
+  [[nodiscard]] constexpr char const* function_name() const noexcept {
+    return _impl_sloc->function_name;
+  }
+  [[nodiscard]] constexpr unsigned line() const noexcept { return _impl_sloc->line; }
+  [[nodiscard]] constexpr unsigned column() const noexcept { return _impl_sloc->column; }
 
   // consteval-only extensions
-  consteval std::meta::info scope() const noexcept { return _impl_sloc->scope(); }
-  consteval std::meta::access_context access_context() const noexcept {
+  [[nodiscard]] consteval std::meta::info scope() const noexcept { return _impl_sloc->scope(); }
+  [[nodiscard]] consteval std::meta::access_context access_context() const noexcept {
     return _impl_sloc->access_context();
   }
 };
