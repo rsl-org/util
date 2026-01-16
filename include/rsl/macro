@@ -38,9 +38,9 @@
 
 //! Workaround for expansion statements in GCC
 #if $compiler_is(GCC)
-#  define $define_static_array(...) [:std::meta::reflect_constant_array(__VA_ARGS__):]
+#  define $define_static_array(...) [:::std::meta::reflect_constant_array(__VA_ARGS__):]
 #else
-#  define $define_static_array(...) std::define_static_array(__VA_ARGS__)
+#  define $define_static_array(...) (::std::define_static_array(__VA_ARGS__))
 #endif
 
 /** Applies `macro` to every element and inserts delimiters produced by `delim` between elements
