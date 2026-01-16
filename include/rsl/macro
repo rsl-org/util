@@ -23,10 +23,9 @@
  */
 #define $os_is(os) (RSL_OS == RSL_OS_##os)
 
-// feature macro helper
+/// feature macro helper
 #define $uses_opt(x) USES_OPT(x)
 
-// attributes
 /**
  * @param: one of always, never
  */
@@ -64,3 +63,6 @@
 #define $for_each(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_NONE, __VA_ARGS__)
 
 #define $diagnostics(op, ...) RSL_DIAG_##op (__VA_ARGS__)
+
+/// Introduces an explicit template region
+#define $template template for (char _ : "")
