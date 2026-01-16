@@ -1,5 +1,4 @@
 #pragma once
-#include <version>
 
 #define RSL_COMPILER_UNKNOWN 0
 #define RSL_COMPILER_CLANG   1

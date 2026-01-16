@@ -3,38 +3,36 @@
 #include <rsl/_impl/macro/compiler.hpp>
 #include <rsl/_impl/macro/opt.hpp>
 #include <rsl/_impl/macro/os.hpp>
-#include <rsl/_impl/macro/define_static_array.hpp>
+#include <rsl/_impl/macro/compat.hpp>
 #include <rsl/_impl/macro/loop.hpp>
 #include <rsl/_impl/macro/diagnostic.hpp>
 
 // compile environment checks
 
 /**
- * @param compiler: one of UNKNOWN, CLANG, GCC, MSVC
+ * @param compiler one of UNKNOWN, CLANG, GCC, MSVC
  */
 #define $compiler_is(compiler) (RSL_COMPILER == RSL_COMPILER_##compiler)
 
 /**
- * @param stdlib: one of UNKNOWN, LIBCXX, GLIBCXX, MSVC
+ * @param stdlib one of UNKNOWN, LIBCXX, GLIBCXX, MSVC
  */
 #define $stdlib_is(stdlib) (RSL_STDLIB == RSL_STDLIB_##stdlib)
 
 /**
- * @param os: one of UNKNOWN, WINDOWS, LINUX, MAC, FREEBSD, ANDROID, IOS
+ * @param os one of UNKNOWN, WINDOWS, LINUX, MAC, FREEBSD, ANDROID, IOS
  */
 #define $os_is(os) (RSL_OS == RSL_OS_##os)
 
-/// feature macro helper
+/// Feature macro helper
 #define $uses_opt(x) USES_OPT(x)
 
 /**
- * @param: one of always, never
+ * @param opt one of always, never
  */
-#define $inline(...) RSL_INLINE(__VA_ARGS__)
+#define $inline(opt) RSL_INLINE(opt)
 
-/** Enable this overload if expr evaluates to true. Clang only.
- * @param expr
- */
+/// Enable this overload if a given expression evaluates to true. Clang only.
 #define $enable_if(...) RSL_ENABLE_IF(__VA_ARGS__)
 
 //! Workaround for expansion statements in GCC
@@ -59,6 +57,10 @@
 */
 #define $for_each(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_NONE, __VA_ARGS__)
 
+/**
+ * @param op one of push, pop, disable, error
+ * @param ... optional arguments
+*/
 #define $diagnostics(op, ...) RSL_DIAG_##op (__VA_ARGS__)
 
 /// Introduces an explicit template region
