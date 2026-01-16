@@ -65,4 +65,4 @@
 #define $diagnostics(op, ...) RSL_DIAG_##op (__VA_ARGS__)
 
 /// Introduces an explicit template region
-#define $template template for (char _ : "")
+#define $template template for (auto _ : "")
